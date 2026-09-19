@@ -12,8 +12,7 @@ type TicketTierDraft = {
   name: string
   price: string
   quantity_available: string
-  sales_start_at: string
-  sales_end_at: string
+  admits_count: string
 }
 
 function useOrganizationEvents(organizationId: string | null) {
@@ -472,7 +471,7 @@ export function DashboardNewEventPage() {
     start_datetime: '', capacity: '', registration_starts_at: '', registration_ends_at: '',
   })
   const [tiers, setTiers] = useState<TicketTierDraft[]>([
-    { id: crypto.randomUUID(), name: '', price: '', quantity_available: '', sales_start_at: '', sales_end_at: '' },
+    { id: crypto.randomUUID(), name: '', price: '', quantity_available: '', admits_count: '1' },
   ])
   const [files, setFiles] = useState<FileList | null>(null)
   const [bannerFile, setBannerFile] = useState<File | null>(null)
@@ -486,7 +485,7 @@ export function DashboardNewEventPage() {
   }
 
   function addTier() {
-    setTiers((current) => [...current, { id: crypto.randomUUID(), name: '', price: '', quantity_available: '', sales_start_at: '', sales_end_at: '' }])
+    setTiers((current) => [...current, { id: crypto.randomUUID(), name: '', price: '', quantity_available: '', admits_count: '1' }])
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -496,7 +495,7 @@ export function DashboardNewEventPage() {
     setError('')
 
     if (isPaid) {
-      const validTiers = tiers.filter((tier) => tier.name.trim() || tier.price || tier.quantity_available || tier.sales_start_at || tier.sales_end_at)
+      const validTiers = tiers.filter((tier) => tier.name.trim() || tier.price || tier.quantity_available || tier.admits_count !== '1')
       if (!validTiers.length || validTiers.some((tier) => !tier.name.trim() || !tier.price || !tier.quantity_available)) {
         setLoading(false)
         setError('Add at least one complete ticket tier with a name, price, and quantity.')
@@ -553,15 +552,14 @@ export function DashboardNewEventPage() {
     }
 
     if (isPaid) {
-      const validTiers = tiers.filter((tier) => tier.name.trim() || tier.price || tier.quantity_available || tier.sales_start_at || tier.sales_end_at)
+      const validTiers = tiers.filter((tier) => tier.name.trim() || tier.price || tier.quantity_available || tier.admits_count !== '1')
       for (const tier of validTiers) {
         const { error: tierError } = await supabase.from('ticket_types').insert({
           event_id: newEvent.id,
           name: tier.name.trim(),
           price: Number(tier.price),
           quantity_available: Number(tier.quantity_available),
-          sales_start_at: tier.sales_start_at || null,
-          sales_end_at: tier.sales_end_at || null,
+          admits_count: Math.max(Number(tier.admits_count) || 1, 1),
         })
         if (tierError) setError(`Event created, but ticket tier "${tier.name}" failed to save: ${tierError.message}`)
       }
@@ -637,19 +635,8 @@ export function DashboardNewEventPage() {
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <input required type="number" min="1" placeholder="Quantity available" value={tier.quantity_available} onChange={(e) => updateTier(tier.id, 'quantity_available', e.target.value)}
                       className="rounded-lg border border-black/15 bg-surface px-3 py-2 text-paper placeholder:text-muted" />
-                    <div className="flex items-center text-sm text-muted">Optional sales window</div>
-                  </div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-xs uppercase tracking-wide text-muted">Sales start</label>
-                      <input type="datetime-local" value={tier.sales_start_at} onChange={(e) => updateTier(tier.id, 'sales_start_at', e.target.value)}
-                        className="w-full rounded-lg border border-black/15 bg-surface px-3 py-2 text-paper" />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs uppercase tracking-wide text-muted">Sales end</label>
-                      <input type="datetime-local" value={tier.sales_end_at} onChange={(e) => updateTier(tier.id, 'sales_end_at', e.target.value)}
-                        className="w-full rounded-lg border border-black/15 bg-surface px-3 py-2 text-paper" />
-                    </div>
+                    <input required type="number" min="1" placeholder="Admits how many people?" value={tier.admits_count} onChange={(e) => updateTier(tier.id, 'admits_count', e.target.value)}
+                      className="rounded-lg border border-black/15 bg-surface px-3 py-2 text-paper placeholder:text-muted" />
                   </div>
                 </div>
               ))}
@@ -1121,6 +1108,8 @@ type UnifiedAttendee = {
   code: string
   status: string
   checkedInAt: string | null
+  checkInCount: number
+  maxAdmits: number
   createdAt: string
   rawRegistration?: Registration
 }
@@ -1170,6 +1159,8 @@ function AttendeesPage() {
         code: r.registration_code,
         status: r.status,
         checkedInAt: r.checked_in_at,
+        checkInCount: r.checked_in_at ? 1 : 0,
+        maxAdmits: 1,
         createdAt: r.created_at,
         rawRegistration: r,
       })
@@ -1190,7 +1181,9 @@ function AttendeesPage() {
           quantity: 1,
           code: ticket.ticket_code,
           status: o.payment_status === 'paid' ? 'confirmed' : o.payment_status,
-          checkedInAt: ticket.checked_in_at,
+          checkedInAt: null,
+          checkInCount: ticket.check_in_count ?? 0,
+          maxAdmits: ticket.max_admits ?? 1,
           createdAt: o.created_at,
         }))
     })
@@ -1223,7 +1216,7 @@ function AttendeesPage() {
     if (selectedEventId !== 'all' && a.eventId !== selectedEventId) return false
     if (filterType === 'paid' && a.type !== 'paid') return false
     if (filterType === 'rsvp' && a.type !== 'rsvp') return false
-    if (filterType === 'checked_in' && !a.checkedInAt) return false
+    if (filterType === 'checked_in' && a.checkInCount === 0) return false
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
       const matchName = a.name?.toLowerCase().includes(q)
@@ -1237,7 +1230,7 @@ function AttendeesPage() {
   })
 
   function exportCsv() {
-    const headers = ['Name', 'Email', 'Phone', 'Event', 'Date', 'Type', 'Amount', 'Ticket/RSVP Code', 'Status', 'Checked In At', 'Registered At']
+    const headers = ['Name', 'Email', 'Phone', 'Event', 'Date', 'Type', 'Amount', 'Ticket/RSVP Code', 'Status', 'Admissions', 'Checked In At', 'Registered At']
     const rows = filtered.map((a) => [
       `"${a.name || ''}"`,
       `"${a.email || ''}"`,
@@ -1248,6 +1241,7 @@ function AttendeesPage() {
       a.amount !== undefined ? formatGHS(a.amount) : 'Free',
       a.code,
       a.status,
+      `${a.checkInCount}/${a.maxAdmits}`,
       a.checkedInAt ? new Date(a.checkedInAt).toLocaleString() : 'No',
       new Date(a.createdAt).toLocaleString(),
     ])
@@ -1260,7 +1254,7 @@ function AttendeesPage() {
   }
 
   const totalCount = attendees.reduce((sum, a) => sum + (a.quantity ?? 1), 0)
-  const checkedInCount = attendees.filter((a) => Boolean(a.checkedInAt)).length
+  const checkedInCount = attendees.reduce((sum, attendee) => sum + attendee.checkInCount, 0)
   const paidCount = attendees.filter((a) => a.type === 'paid').length
   const rsvpCount = attendees.filter((a) => a.type === 'rsvp').length
 
@@ -1447,7 +1441,11 @@ function AttendeesPage() {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      {a.checkedInAt ? (
+                      {a.type === 'paid' ? (
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${a.checkInCount >= a.maxAdmits ? 'bg-emerald-500/10 text-emerald-700' : a.checkInCount > 0 ? 'bg-gold/10 text-gold' : 'text-muted'}`}>
+                          {a.checkInCount}/{a.maxAdmits} admitted
+                        </span>
+                      ) : a.checkedInAt ? (
                         <div className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700" title={`Checked in: ${formatDate(a.checkedInAt)}`}>
                           <span>✓ In</span>
                         </div>
@@ -1968,7 +1966,12 @@ function EditEventPanel({ event, onChange }: { event: EventRow; onChange: () => 
 
 function TicketTypesPanel({ event, onChange }: { event: EventRow; onChange: () => void }) {
   const [types, setTypes] = useState<TicketType[]>([])
-  const [form, setForm] = useState({ name: '', price: '', quantity_available: '', sales_start_at: '', sales_end_at: '' })
+  const [form, setForm] = useState({ name: '', price: '', quantity_available: '', admits_count: '1' })
+  const [editingPriceId, setEditingPriceId] = useState<string | null>(null)
+  const [editingPrice, setEditingPrice] = useState('')
+  const [savingPrice, setSavingPrice] = useState(false)
+  const [deletingTypeId, setDeletingTypeId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [saved, setSaved] = useState(false)
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
@@ -1979,6 +1982,52 @@ function TicketTypesPanel({ event, onChange }: { event: EventRow; onChange: () =
   }
   useEffect(() => { load() }, [event.id])
 
+  function startEditingPrice(ticket: TicketType) {
+    setEditingPriceId(ticket.id)
+    setEditingPrice(String(ticket.price))
+    setError('')
+  }
+
+  async function savePrice(ticketId: string) {
+    const price = Number(editingPrice)
+    if (!Number.isFinite(price) || price < 0) {
+      setError('Enter a valid price amount.')
+      return
+    }
+    setSavingPrice(true)
+    setError('')
+    try {
+      const { error } = await supabase.from('ticket_types').update({ price }).eq('id', ticketId).eq('event_id', event.id)
+      if (error) {
+        setError(error.message)
+        return
+      }
+      setEditingPriceId(null)
+      await load()
+      await onChange()
+    } finally {
+      setSavingPrice(false)
+    }
+  }
+
+  async function deleteType() {
+    if (!deletingTypeId) return
+    setDeleting(true)
+    setError('')
+    try {
+      const { error } = await supabase.from('ticket_types').delete().eq('id', deletingTypeId).eq('event_id', event.id)
+      if (error) {
+        setError(error.message)
+        return
+      }
+      setDeletingTypeId(null)
+      await load()
+      await onChange()
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   async function addType(e: React.FormEvent) {
     e.preventDefault()
     setAdding(true)
@@ -1986,15 +2035,13 @@ function TicketTypesPanel({ event, onChange }: { event: EventRow; onChange: () =
     try {
       const { error } = await supabase.from('ticket_types').insert({
       event_id: event.id, name: form.name,
-      price: Number(form.price), quantity_available: Number(form.quantity_available),
-      sales_start_at: form.sales_start_at || null,
-      sales_end_at: form.sales_end_at || null,
+      price: Number(form.price), quantity_available: Number(form.quantity_available), admits_count: Math.max(Number(form.admits_count) || 1, 1),
     })
       if (error) {
         setError(error.message)
         return
       }
-      setForm({ name: '', price: '', quantity_available: '', sales_start_at: '', sales_end_at: '' })
+      setForm({ name: '', price: '', quantity_available: '', admits_count: '1' })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
       await load()
@@ -2008,9 +2055,31 @@ function TicketTypesPanel({ event, onChange }: { event: EventRow; onChange: () =
     <div>
       <div className="mb-4 space-y-2">
         {types.map((t) => (
-          <div key={t.id} className="flex justify-between rounded-lg bg-ink px-3 py-2 text-sm">
+          <div key={t.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-ink px-3 py-2 text-sm">
             <span className="text-paper">{t.name}</span>
-            <span className="text-muted">{formatGHS(t.price)} · {t.quantity_sold}/{t.quantity_available} sold</span>
+            <div className="flex items-center gap-2 text-muted">
+              {editingPriceId === t.id ? (
+                <>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editingPrice}
+                    onChange={(e) => setEditingPrice(e.target.value)}
+                    className="w-28 rounded-md border border-black/15 bg-surface px-2 py-1 text-paper"
+                    aria-label={`Price for ${t.name}`}
+                  />
+                  <button type="button" disabled={savingPrice} onClick={() => savePrice(t.id)} className="rounded-md bg-gold px-2 py-1 text-xs font-medium text-ink disabled:opacity-60">{savingPrice ? 'Saving…' : 'Save'}</button>
+                  <button type="button" disabled={savingPrice} onClick={() => setEditingPriceId(null)} className="text-xs text-muted hover:text-paper">Cancel</button>
+                </>
+              ) : (
+                <>
+                  <span>{formatGHS(t.price)} · admits {t.admits_count ?? 1} · {t.quantity_sold}/{t.quantity_available} sold</span>
+                  <button type="button" onClick={() => startEditingPrice(t)} className="rounded-md border border-black/15 px-2 py-1 text-xs text-paper hover:bg-black/5">Edit price</button>
+                  <button type="button" onClick={() => setDeletingTypeId(t.id)} className="rounded-md border border-flame/30 px-2 py-1 text-xs text-flame hover:bg-flame/10">Delete</button>
+                </>
+              )}
+            </div>
           </div>
         ))}
         {types.length === 0 && <p className="text-sm text-muted">No ticket types yet — add one below.</p>}
@@ -2026,18 +2095,9 @@ function TicketTypesPanel({ event, onChange }: { event: EventRow; onChange: () =
           <input required type="number" placeholder="Quantity" value={form.quantity_available}
             onChange={(e) => setForm({ ...form, quantity_available: e.target.value })}
             className="w-28 rounded-lg border border-black/15 bg-ink px-3 py-1.5 text-sm text-paper placeholder:text-muted" />
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs uppercase tracking-wide text-muted">Sales start</label>
-            <input type="datetime-local" value={form.sales_start_at} onChange={(e) => setForm({ ...form, sales_start_at: e.target.value })}
-              className="w-full rounded-lg border border-black/15 bg-ink px-3 py-2 text-sm text-paper" />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs uppercase tracking-wide text-muted">Sales end</label>
-            <input type="datetime-local" value={form.sales_end_at} onChange={(e) => setForm({ ...form, sales_end_at: e.target.value })}
-              className="w-full rounded-lg border border-black/15 bg-ink px-3 py-2 text-sm text-paper" />
-          </div>
+          <input required type="number" min="1" placeholder="Admits how many people?" value={form.admits_count}
+            onChange={(e) => setForm({ ...form, admits_count: e.target.value })}
+            className="w-44 rounded-lg border border-black/15 bg-ink px-3 py-1.5 text-sm text-paper placeholder:text-muted" />
         </div>
         <div className="flex items-center gap-3">
           <button disabled={adding} className="rounded-lg bg-gold px-4 py-1.5 text-sm font-medium text-ink disabled:opacity-60">{adding ? 'Adding…' : 'Add'}</button>
@@ -2045,6 +2105,16 @@ function TicketTypesPanel({ event, onChange }: { event: EventRow; onChange: () =
         </div>
         {error && <p className="text-sm text-flame">Could not add ticket type: {error}</p>}
       </form>
+      <ConfirmDialog
+        open={deletingTypeId !== null}
+        title="Delete this ticket type?"
+        message="This will remove the tier from future ticket sales. Existing orders may prevent deletion if tickets already use this type."
+        confirmLabel="Delete ticket type"
+        confirmClassName="bg-flame text-ink hover:brightness-90"
+        loading={deleting}
+        onConfirm={deleteType}
+        onCancel={() => { if (!deleting) setDeletingTypeId(null) }}
+      />
     </div>
   )
 }
@@ -2180,7 +2250,7 @@ function AttendeesPanel({ event }: { event: EventRow }) {
 
   function exportCsv() {
     const rows = event.is_paid
-      ? orders.flatMap((o) => o.tickets.map((ticket) => [o.buyer_full_name, o.buyer_email, o.buyer_phone, 1, Number(o.total_amount) / Math.max(o.quantity, 1), o.payment_status, ticket.ticket_code, ticket.checked_in_at ? 'Yes' : 'No']))
+      ? orders.flatMap((o) => o.tickets.map((ticket) => [o.buyer_full_name, o.buyer_email, o.buyer_phone, 1, Number(o.total_amount) / Math.max(o.quantity, 1), o.payment_status, ticket.ticket_code, `${ticket.check_in_count ?? 0}/${ticket.max_admits ?? 1}`]))
       : regs.map((r) => [r.attendee_full_name, r.attendee_email, r.attendee_phone, r.registration_code])
     const header = event.is_paid
       ? ['Name', 'Email', 'Phone', 'Qty', 'Amount', 'Status', 'Code', 'Checked in']
@@ -2219,7 +2289,7 @@ function AttendeesPanel({ event }: { event: EventRow }) {
                   <td className="py-1.5 pr-4 text-muted">{o.buyer_email}</td>
                   <td className="py-1.5 pr-4">{formatGHS(Number(o.total_amount) / Math.max(o.quantity, 1))} · {o.payment_status}</td>
                   <td className="py-1.5 pr-4">{ticket.ticket_code}</td>
-                  <td className="py-1.5">{ticket.checked_in_at ? '✓' : '—'}</td>
+                  <td className="py-1.5">{ticket.check_in_count ?? 0}/{ticket.max_admits ?? 1}</td>
                 </tr>
               )))
               : regs.map((r) => (
@@ -2247,7 +2317,15 @@ function AttendeesPanel({ event }: { event: EventRow }) {
 function CheckInPanel({ event }: { event: EventRow }) {
   const [code, setCode] = useState('')
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
-  const [pendingCheckIn, setPendingCheckIn] = useState<{ table: 'tickets' | 'registrations'; id: string; name: string; phone: string | null } | null>(null)
+  const [pendingCheckIn, setPendingCheckIn] = useState<{
+    table: 'tickets' | 'registrations'
+    id: string
+    name: string
+    phone: string | null
+    maxAdmits: number
+    checkInCount: number
+    label: string
+  } | null>(null)
   const [scanning, setScanning] = useState(false)
   const [checkingIn, setCheckingIn] = useState(false)
   const [scannerError, setScannerError] = useState('')
@@ -2259,7 +2337,7 @@ function CheckInPanel({ event }: { event: EventRow }) {
       setPendingCheckIn(null)
       const normalizedCode = rawCode.trim().toUpperCase()
       const { data: row } = event.is_paid
-        ? await supabase.from('tickets').select('*, orders!inner(buyer_full_name, buyer_phone, event_id)').eq('ticket_code', normalizedCode).eq('orders.event_id', event.id).maybeSingle()
+        ? await supabase.from('tickets').select('*, orders!inner(buyer_full_name, buyer_phone, event_id, ticket_types(name))').eq('ticket_code', normalizedCode).eq('orders.event_id', event.id).maybeSingle()
         : await supabase.from('registrations').select('*').eq('event_id', event.id).eq('registration_code', normalizedCode).eq('status', 'confirmed').maybeSingle()
 
       if (!row) {
@@ -2269,11 +2347,25 @@ function CheckInPanel({ event }: { event: EventRow }) {
         }
         setResult({ ok: false, message: 'Code not found for this event.' }); return
       }
-      if (row.checked_in_at) { setResult({ ok: false, message: `Already checked in at ${new Date(row.checked_in_at).toLocaleTimeString()}.` }); return }
+      if (event.is_paid) {
+        const maxAdmits = Math.max(row.max_admits || 1, 1)
+        const checkInCount = row.check_in_count || 0
+        const label = row.orders.ticket_types?.name ? `${row.orders.ticket_types.name} Ticket` : 'Ticket'
+        if (checkInCount >= maxAdmits) {
+          setResult({ ok: false, message: maxAdmits === 1 ? `Already checked in.` : `This ticket has already been fully used (${checkInCount}/${maxAdmits} admitted).` })
+          return
+        }
+        const name = row.orders.buyer_full_name
+        const phone = row.orders.buyer_phone
+        setPendingCheckIn({ table: 'tickets', id: row.id, name, phone, maxAdmits, checkInCount, label })
+        setResult({ ok: true, message: `${label} (${checkInCount}/${maxAdmits} admitted) · Name: ${name}${phone ? ` · Phone: ${phone}` : ''} · ${event.title}` })
+        return
+      }
 
-      const name = event.is_paid ? row.orders.buyer_full_name : row.attendee_full_name
-      const phone = event.is_paid ? row.orders.buyer_phone : row.attendee_phone
-      setPendingCheckIn({ table: event.is_paid ? 'tickets' : 'registrations', id: row.id, name, phone })
+      if (row.checked_in_at) { setResult({ ok: false, message: `Already checked in at ${new Date(row.checked_in_at).toLocaleTimeString()}.` }); return }
+      const name = row.attendee_full_name
+      const phone = row.attendee_phone
+      setPendingCheckIn({ table: 'registrations', id: row.id, name, phone, maxAdmits: 1, checkInCount: 0, label: 'Registration' })
       setResult({ ok: true, message: `Name: ${name}${phone ? ` · Phone: ${phone}` : ''} · ${event.title}` })
     } finally {
       setCheckingIn(false)
@@ -2283,7 +2375,22 @@ function CheckInPanel({ event }: { event: EventRow }) {
   async function confirmCheckIn() {
     if (!pendingCheckIn) return
     setCheckingIn(true)
-    const { error } = await supabase.from(pendingCheckIn.table).update({ checked_in_at: new Date().toISOString() }).eq('id', pendingCheckIn.id)
+    if (pendingCheckIn.table === 'tickets') {
+      const nextCount = pendingCheckIn.checkInCount + 1
+      const { error } = await supabase.from('tickets').update({ check_in_count: nextCount }).eq('id', pendingCheckIn.id).lt('check_in_count', pendingCheckIn.maxAdmits)
+      setCheckingIn(false)
+      if (error) {
+        setResult({ ok: false, message: `Could not complete check-in: ${error.message}` })
+        return
+      }
+      setPendingCheckIn((current) => current ? { ...current, checkInCount: nextCount } : current)
+      setResult({ ok: true, message: `${pendingCheckIn.label} (${nextCount}/${pendingCheckIn.maxAdmits} admitted) · Checked in: ${pendingCheckIn.name}` })
+      setCode('')
+      confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } })
+      return
+    }
+
+    const { error } = await supabase.from('registrations').update({ checked_in_at: new Date().toISOString() }).eq('id', pendingCheckIn.id)
     setCheckingIn(false)
     if (error) {
       setResult({ ok: false, message: `Could not complete check-in: ${error.message}` })
@@ -2367,9 +2474,11 @@ function CheckInPanel({ event }: { event: EventRow }) {
         <p className={`mt-3 text-sm ${result.ok ? 'text-gold' : 'text-flame'}`}>{result.message}</p>
       )}
       {pendingCheckIn && (
-        <button type="button" onClick={confirmCheckIn} disabled={checkingIn} className="mt-4 rounded-lg bg-flame px-5 py-2 font-medium text-ink disabled:opacity-60">
-          {checkingIn ? 'Confirming…' : 'Confirm check-in'}
-        </button>
+        pendingCheckIn.table === 'registrations' || pendingCheckIn.checkInCount < pendingCheckIn.maxAdmits ? (
+          <button type="button" onClick={confirmCheckIn} disabled={checkingIn} className="mt-4 rounded-lg bg-flame px-5 py-2 font-medium text-ink disabled:opacity-60">
+            {checkingIn ? 'Confirming…' : 'Confirm check-in'}
+          </button>
+        ) : null
       )}
     </div>
   )

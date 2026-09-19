@@ -51,6 +51,7 @@ export type TicketType = {
   price: number
   quantity_available: number
   quantity_sold: number
+  admits_count: number
   sales_start_at: string | null
   sales_end_at: string | null
 }
@@ -85,6 +86,8 @@ export type Ticket = {
   id: string
   order_id: string
   ticket_code: string
+  max_admits: number
+  check_in_count: number
   checked_in_at: string | null
   created_at?: string
 }

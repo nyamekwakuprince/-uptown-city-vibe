@@ -108,8 +108,9 @@ export default function EventDetail() {
     })
 
     if (insertError) {
+      console.error('Could not create order:', insertError)
       setSubmitting(false)
-      setError('Something went wrong. Please try again.')
+      setError(`Could not create order: ${insertError.message}`)
       return
     }
 
@@ -119,11 +120,13 @@ export default function EventDetail() {
       id: crypto.randomUUID(),
       order_id: orderId,
       ticket_code: ticketCode,
+      max_admits: Math.max(ticket.admits_count || 1, 1),
     }))
     const { error: ticketInsertError } = await supabase.from('tickets').insert(ticketRows)
     if (ticketInsertError) {
+      console.error('Could not create tickets:', ticketInsertError)
       setSubmitting(false)
-      setError('Something went wrong creating your tickets. Please try again.')
+      setError(`Could not create tickets: ${ticketInsertError.message}`)
       return
     }
 
@@ -132,7 +135,7 @@ export default function EventDetail() {
       window.location.href = authorization_url
     } catch (err) {
       setSubmitting(false)
-      setError(err instanceof Error ? err.message : 'Could not start payment. Please try again.')
+      setError(err instanceof Error ? `Could not start payment: ${err.message}` : 'Could not start payment. Please try again.')
     }
   }
 
