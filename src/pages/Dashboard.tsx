@@ -957,21 +957,21 @@ function StatCard({
     <button
       type="button"
       onClick={onClick}
-      className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-black/10 bg-surface p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-black/25 hover:shadow-md active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-flame/30"
+      className="group relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border border-black/10 bg-surface p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-black/25 hover:shadow-md active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-flame/30 sm:p-5"
     >
       <div className="flex w-full items-start justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted">{label}</span>
+        <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-muted sm:text-xs">{label}</span>
         {icon && (
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-black/5 text-muted transition-colors group-hover:bg-flame/10 group-hover:text-flame">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-black/5 text-muted transition-colors group-hover:bg-flame/10 group-hover:text-flame sm:h-9 sm:w-9">
             {icon}
           </div>
         )}
       </div>
-      <div className="mt-4">
-        <p className="display text-3xl font-bold tracking-tight text-paper">{value}</p>
+      <div className="mt-3 sm:mt-4">
+        <p className="display truncate text-2xl font-bold tracking-tight text-paper sm:text-3xl">{value}</p>
         {subtext && (
-          <p className="mt-2.5 flex items-center text-xs font-medium text-muted transition-colors group-hover:text-flame">
-            <span>{subtext}</span>
+          <p className="mt-2.5 flex items-center text-[10px] font-medium text-muted transition-colors group-hover:text-flame sm:text-xs">
+            <span className="truncate">{subtext}</span>
             <svg className="ml-1 h-3.5 w-3.5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
             </svg>
@@ -1017,7 +1017,7 @@ function Overview({ organizationId, events }: { organizationId: string; events: 
 
   return (
     <div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
           label="Upcoming events"
           value={String(stats.upcoming)}
