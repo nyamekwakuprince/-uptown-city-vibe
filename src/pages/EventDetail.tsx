@@ -91,8 +91,6 @@ export default function EventDetail() {
     }
     setSubmitting(true)
     setError('')
-    const code = shortCode('TIX')
-
     const orderId = crypto.randomUUID()
     const { error: insertError } = await supabase.from('orders').insert({
       id: orderId,
@@ -107,12 +105,25 @@ export default function EventDetail() {
       quantity,
       total_amount: ticket.price * quantity,
       payment_status: 'pending',
-      ticket_code: code,
     })
 
     if (insertError) {
       setSubmitting(false)
       setError('Something went wrong. Please try again.')
+      return
+    }
+
+    const ticketCodes = new Set<string>()
+    while (ticketCodes.size < quantity) ticketCodes.add(shortCode('TIX'))
+    const ticketRows = Array.from(ticketCodes, (ticketCode) => ({
+      id: crypto.randomUUID(),
+      order_id: orderId,
+      ticket_code: ticketCode,
+    }))
+    const { error: ticketInsertError } = await supabase.from('tickets').insert(ticketRows)
+    if (ticketInsertError) {
+      setSubmitting(false)
+      setError('Something went wrong creating your tickets. Please try again.')
       return
     }
 

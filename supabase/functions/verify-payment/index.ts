@@ -30,9 +30,12 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ status: 'not_found' }), { status: 404, headers: corsHeaders })
   }
 
-  if (order.payment_status === 'paid') {
-    return new Response(JSON.stringify({ status: 'success', order_id: order.id, ticket_code: order.ticket_code }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+  async function successResponse() {
+    const { data: tickets } = await supabase.from('tickets').select('ticket_code').eq('order_id', order.id).order('created_at', { ascending: true })
+    return new Response(JSON.stringify({ status: 'success', order_id: order.id, ticket_codes: (tickets ?? []).map((ticket) => ticket.ticket_code) }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
+
+  if (order.payment_status === 'paid') return successResponse()
 
   const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
     headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` },
@@ -63,5 +66,5 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ status: 'failed' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
-  return new Response(JSON.stringify({ status: 'success', order_id: order.id, ticket_code: order.ticket_code }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+  return successResponse()
 })

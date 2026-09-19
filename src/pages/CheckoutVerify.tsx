@@ -12,7 +12,7 @@ export default function CheckoutVerify() {
   const [params] = useSearchParams()
   const reference = params.get('reference') ?? params.get('trxref')
   const [status, setStatus] = useState<'checking' | 'success' | 'failed'>('checking')
-  const [ticketCode, setTicketCode] = useState<string | null>(null)
+  const [ticketCodes, setTicketCodes] = useState<string[]>([])
   const [order, setOrder] = useState<OrderWithEvent | null>(null)
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export default function CheckoutVerify() {
       try {
         const data = await callFunction('verify-payment', { reference })
         if (data.status === 'success') {
-          setTicketCode(data.ticket_code)
+          setTicketCodes(Array.isArray(data.ticket_codes) ? data.ticket_codes : [])
           sendConfirmationEmail('order', data.order_id)
           confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } })
           setStatus('success')
@@ -47,26 +47,28 @@ export default function CheckoutVerify() {
   }, [reference])
 
   function handleDownloadReceipt() {
-    if (!ticketCode) return
-    const qrCanvas = document.getElementById(`qr-canvas-${ticketCode}`) as HTMLCanvasElement | null
-    generateAndDownloadReceipt({
-      eventName: order?.events?.title || 'Event Ticket',
-      eventDate: order?.events?.start_datetime,
-      venueName: order?.events?.venue_name,
-      venueAddress: order?.events?.venue_address,
-      attendeeName: order?.buyer_full_name || 'Ticket Holder',
-      code: ticketCode,
-      type: 'ticket',
-      amount: order?.total_amount ? Number(order.total_amount) : null,
-      quantity: order?.quantity || 1,
-    }, qrCanvas)
+    if (ticketCodes.length === 0) return
+    ticketCodes.forEach((ticketCode) => {
+      const qrCanvas = document.getElementById(`qr-canvas-${ticketCode}`) as HTMLCanvasElement | null
+      generateAndDownloadReceipt({
+        eventName: order?.events?.title || 'Event Ticket',
+        eventDate: order?.events?.start_datetime,
+        venueName: order?.events?.venue_name,
+        venueAddress: order?.events?.venue_address,
+        attendeeName: order?.buyer_full_name || 'Ticket Holder',
+        code: ticketCode,
+        type: 'ticket',
+        amount: order?.total_amount ? Number(order.total_amount) / ticketCodes.length : null,
+        quantity: 1,
+      }, qrCanvas)
+    })
   }
 
   return (
     <div className="mx-auto max-w-md px-5 py-20 text-center">
       {status === 'checking' && <p className="text-muted">Confirming your payment…</p>}
 
-      {status === 'success' && ticketCode && (
+      {status === 'success' && ticketCodes.length > 0 && (
         <div className="flex flex-col items-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -78,9 +80,14 @@ export default function CheckoutVerify() {
             {order?.events?.title ? `You're all set for ${order.events.title}.` : 'Show this code at the door.'}
           </p>
 
-          <div className="my-6 flex flex-col items-center justify-center rounded-2xl border border-black/10 bg-white p-5 shadow-xs">
-            <QRCodeCanvas id={`qr-canvas-${ticketCode}`} value={ticketCode} size={170} />
-            <p className="display mt-3 font-mono text-base font-bold tracking-wider text-flame">{ticketCode}</p>
+          {ticketCodes.length > 1 && <p className="mt-4 text-sm text-muted">Each ticket is checked in separately, so make sure everyone in your group has their own code.</p>}
+          <div className="my-6 flex w-full flex-col items-center gap-4">
+            {ticketCodes.map((ticketCode) => (
+              <div key={ticketCode} className="flex w-full flex-col items-center justify-center rounded-2xl border border-black/10 bg-white p-5 shadow-xs">
+                <QRCodeCanvas id={`qr-canvas-${ticketCode}`} value={ticketCode} size={170} />
+                <p className="display mt-3 font-mono text-base font-bold tracking-wider text-flame">{ticketCode}</p>
+              </div>
+            ))}
           </div>
 
           <div className="flex flex-col items-center gap-2">

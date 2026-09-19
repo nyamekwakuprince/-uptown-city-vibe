@@ -5,7 +5,7 @@ import confetti from 'canvas-confetti'
 import { supabase, formatDate, formatGHS, callFunction, sendConfirmationEmail } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import ConfirmDialog from '../components/ConfirmDialog'
-import type { EventRow, TicketType, Registration, Order, Member, GalleryImage } from '../lib/types'
+import type { EventRow, TicketType, Registration, Order, Ticket, Member, GalleryImage } from '../lib/types'
 
 type TicketTierDraft = {
   id: string
@@ -1151,7 +1151,7 @@ function AttendeesPage() {
 
     const [{ data: regs }, { data: orders }] = await Promise.all([
       supabase.from('registrations').select('*').in('event_id', eventIds).order('created_at', { ascending: false }),
-      supabase.from('orders').select('*').in('event_id', eventIds).order('created_at', { ascending: false }),
+      supabase.from('orders').select('*, tickets(*)').in('event_id', eventIds).order('created_at', { ascending: false }),
     ])
 
     const list: UnifiedAttendee[] = []
@@ -1175,24 +1175,24 @@ function AttendeesPage() {
       })
     })
 
-    ;((orders as Order[]) ?? []).forEach((o) => {
+    ;((orders as (Order & { tickets: Ticket[] })[]) ?? []).forEach((o) => {
       const ev = eventMap.get(o.event_id)
-      list.push({
-        id: `order-${o.id}`,
-        name: o.buyer_full_name,
-        email: o.buyer_email,
-        phone: o.buyer_phone,
-        eventId: o.event_id,
-        eventTitle: ev?.title ?? 'Event',
-        eventDate: ev?.start_datetime ?? '',
-        type: 'paid',
-        amount: Number(o.total_amount),
-        quantity: o.quantity,
-        code: o.ticket_code,
-        status: o.payment_status === 'paid' ? 'confirmed' : o.payment_status,
-        checkedInAt: o.checked_in_at,
-        createdAt: o.created_at,
-      })
+      o.tickets.forEach((ticket) => list.push({
+          id: `ticket-${ticket.id}`,
+          name: o.buyer_full_name,
+          email: o.buyer_email,
+          phone: o.buyer_phone,
+          eventId: o.event_id,
+          eventTitle: ev?.title ?? 'Event',
+          eventDate: ev?.start_datetime ?? '',
+          type: 'paid',
+          amount: Number(o.total_amount) / Math.max(o.quantity, 1),
+          quantity: 1,
+          code: ticket.ticket_code,
+          status: o.payment_status === 'paid' ? 'confirmed' : o.payment_status,
+          checkedInAt: ticket.checked_in_at,
+          createdAt: o.created_at,
+        }))
     })
 
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -1470,7 +1470,7 @@ function RevenuePage() {
   const { profile } = useAuth()
   const navigate = useNavigate()
   const { events } = useOrganizationEvents(profile?.organization_id ?? null)
-  const [orders, setOrders] = useState<Order[]>([])
+  const [orders, setOrders] = useState<(Order & { tickets: Ticket[] })[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedEventId, setSelectedEventId] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -1489,11 +1489,11 @@ function RevenuePage() {
 
     const { data } = await supabase
       .from('orders')
-      .select('*')
+      .select('*, tickets(*)')
       .in('event_id', eventIds)
       .order('created_at', { ascending: false })
 
-    setOrders((data as Order[]) ?? [])
+    setOrders((data as (Order & { tickets: Ticket[] })[]) ?? [])
     setLoading(false)
   }
 
@@ -1529,7 +1529,7 @@ function RevenuePage() {
       const matchName = o.buyer_full_name?.toLowerCase().includes(q)
       const matchEmail = o.buyer_email?.toLowerCase().includes(q)
       const matchPhone = o.buyer_phone?.toLowerCase().includes(q)
-      const matchCode = o.ticket_code?.toLowerCase().includes(q)
+      const matchCode = o.tickets.some((ticket) => ticket.ticket_code.toLowerCase().includes(q))
       const matchEvent = ev?.title.toLowerCase().includes(q)
       if (!matchName && !matchEmail && !matchPhone && !matchCode && !matchEvent) return false
     }
@@ -1549,7 +1549,7 @@ function RevenuePage() {
         o.quantity,
         formatGHS(o.total_amount),
         o.payment_status,
-        o.ticket_code,
+        o.tickets.map((ticket) => ticket.ticket_code).join('; '),
         new Date(o.created_at).toLocaleString(),
       ]
     })
@@ -1721,15 +1721,15 @@ function RevenuePage() {
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-1.5">
                             <code className="rounded-md bg-black/5 px-2 py-1 font-mono text-[11px] text-paper">
-                              {o.ticket_code}
+                              {o.tickets.map((ticket) => ticket.ticket_code).join(', ')}
                             </code>
                             <button
                               type="button"
-                              onClick={() => copyCode(o.ticket_code)}
+                              onClick={() => copyCode(o.tickets[0]?.ticket_code ?? '')}
                               title="Copy ticket code"
                               className="rounded p-1 text-muted hover:bg-black/5 hover:text-paper"
                             >
-                              {copiedCode === o.ticket_code ? (
+                              {copiedCode === o.tickets[0]?.ticket_code ? (
                                 <span className="text-[11px] font-semibold text-emerald-600">✓</span>
                               ) : (
                                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2152,14 +2152,14 @@ function FlyersPanel({ event, onBannerChange }: { event: EventRow; onBannerChang
 
 function AttendeesPanel({ event }: { event: EventRow }) {
   const [regs, setRegs] = useState<Registration[]>([])
-  const [orders, setOrders] = useState<Order[]>([])
+  const [orders, setOrders] = useState<(Order & { tickets: Ticket[] })[]>([])
   const [success, setSuccess] = useState('')
 
   useEffect(() => {
     async function load() {
       if (event.is_paid) {
-        const { data } = await supabase.from('orders').select('*').eq('event_id', event.id).order('created_at', { ascending: false })
-        setOrders((data as Order[]) ?? [])
+        const { data } = await supabase.from('orders').select('*, tickets(*)').eq('event_id', event.id).order('created_at', { ascending: false })
+        setOrders((data as (Order & { tickets: Ticket[] })[]) ?? [])
       } else {
         const { data } = await supabase.from('registrations').select('*').eq('event_id', event.id).order('created_at', { ascending: false })
         setRegs((data as Registration[]) ?? [])
@@ -2180,10 +2180,10 @@ function AttendeesPanel({ event }: { event: EventRow }) {
 
   function exportCsv() {
     const rows = event.is_paid
-      ? orders.map((o) => [o.buyer_full_name, o.buyer_email, o.buyer_phone, o.quantity, o.total_amount, o.payment_status, o.ticket_code])
+      ? orders.flatMap((o) => o.tickets.map((ticket) => [o.buyer_full_name, o.buyer_email, o.buyer_phone, 1, Number(o.total_amount) / Math.max(o.quantity, 1), o.payment_status, ticket.ticket_code, ticket.checked_in_at ? 'Yes' : 'No']))
       : regs.map((r) => [r.attendee_full_name, r.attendee_email, r.attendee_phone, r.registration_code])
     const header = event.is_paid
-      ? ['Name', 'Email', 'Phone', 'Qty', 'Total', 'Status', 'Code']
+      ? ['Name', 'Email', 'Phone', 'Qty', 'Amount', 'Status', 'Code', 'Checked in']
       : ['Name', 'Email', 'Phone', 'Code']
     const csv = [header, ...rows].map((r) => r.join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -2192,8 +2192,6 @@ function AttendeesPanel({ event }: { event: EventRow }) {
     link.download = `${event.slug}-attendees.csv`
     link.click()
   }
-
-  const list = event.is_paid ? orders : regs
 
   return (
     <div>
@@ -2215,15 +2213,15 @@ function AttendeesPanel({ event }: { event: EventRow }) {
           </thead>
           <tbody>
             {event.is_paid
-              ? orders.map((o) => (
-                <tr key={o.id} className="border-t border-black/5 text-paper">
+              ? orders.flatMap((o) => o.tickets.map((ticket) => (
+                <tr key={ticket.id} className="border-t border-black/5 text-paper">
                   <td className="py-1.5 pr-4">{o.buyer_full_name}</td>
                   <td className="py-1.5 pr-4 text-muted">{o.buyer_email}</td>
-                  <td className="py-1.5 pr-4">{formatGHS(o.total_amount)} · {o.payment_status}</td>
-                  <td className="py-1.5 pr-4">{o.ticket_code}</td>
-                  <td className="py-1.5">{o.checked_in_at ? '✓' : '—'}</td>
+                  <td className="py-1.5 pr-4">{formatGHS(Number(o.total_amount) / Math.max(o.quantity, 1))} · {o.payment_status}</td>
+                  <td className="py-1.5 pr-4">{ticket.ticket_code}</td>
+                  <td className="py-1.5">{ticket.checked_in_at ? '✓' : '—'}</td>
                 </tr>
-              ))
+              )))
               : regs.map((r) => (
                 <tr key={r.id} className="border-t border-black/5 text-paper">
                   <td className="py-1.5 pr-4">{r.attendee_full_name}</td>
@@ -2240,7 +2238,7 @@ function AttendeesPanel({ event }: { event: EventRow }) {
               ))}
           </tbody>
         </table>
-        {list.length === 0 && <p className="py-4 text-sm text-muted">No one yet.</p>}
+        {(event.is_paid ? orders.flatMap((order) => order.tickets).length : regs.length) === 0 && <p className="py-4 text-sm text-muted">No one yet.</p>}
       </div>
     </div>
   )
@@ -2249,6 +2247,7 @@ function AttendeesPanel({ event }: { event: EventRow }) {
 function CheckInPanel({ event }: { event: EventRow }) {
   const [code, setCode] = useState('')
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [pendingCheckIn, setPendingCheckIn] = useState<{ table: 'tickets' | 'registrations'; id: string; name: string; phone: string | null } | null>(null)
   const [scanning, setScanning] = useState(false)
   const [checkingIn, setCheckingIn] = useState(false)
   const [scannerError, setScannerError] = useState('')
@@ -2257,35 +2256,43 @@ function CheckInPanel({ event }: { event: EventRow }) {
     setCheckingIn(true)
     try {
       setResult(null)
-      const table = event.is_paid ? 'orders' : 'registrations'
-      const codeField = event.is_paid ? 'ticket_code' : 'registration_code'
-
-      const query = supabase.from(table).select('*').eq('event_id', event.id).eq(codeField, rawCode.trim().toUpperCase())
+      setPendingCheckIn(null)
+      const normalizedCode = rawCode.trim().toUpperCase()
       const { data: row } = event.is_paid
-        ? await query.maybeSingle()
-        : await query.eq('status', 'confirmed').maybeSingle()
+        ? await supabase.from('tickets').select('*, orders!inner(buyer_full_name, buyer_phone, event_id)').eq('ticket_code', normalizedCode).eq('orders.event_id', event.id).maybeSingle()
+        : await supabase.from('registrations').select('*').eq('event_id', event.id).eq('registration_code', normalizedCode).eq('status', 'confirmed').maybeSingle()
 
       if (!row) {
         if (!event.is_paid) {
-          const { data: pending } = await supabase.from('registrations').select('id').eq('event_id', event.id).eq('registration_code', rawCode.trim().toUpperCase()).eq('status', 'pending').maybeSingle()
+          const { data: pending } = await supabase.from('registrations').select('id').eq('event_id', event.id).eq('registration_code', normalizedCode).eq('status', 'pending').maybeSingle()
           if (pending) { setResult({ ok: false, message: "This registration hasn't been confirmed yet." }); return }
         }
         setResult({ ok: false, message: 'Code not found for this event.' }); return
       }
       if (row.checked_in_at) { setResult({ ok: false, message: `Already checked in at ${new Date(row.checked_in_at).toLocaleTimeString()}.` }); return }
 
-      const { error: checkInError } = await supabase.from(table).update({ checked_in_at: new Date().toISOString() }).eq('id', row.id)
-      if (checkInError) {
-        setResult({ ok: false, message: `Could not complete check-in: ${checkInError.message}` })
-        return
-      }
-      const name = event.is_paid ? row.buyer_full_name : row.attendee_full_name
-      setResult({ ok: true, message: `Checked in: ${name}` })
-      confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } })
-      setCode('')
+      const name = event.is_paid ? row.orders.buyer_full_name : row.attendee_full_name
+      const phone = event.is_paid ? row.orders.buyer_phone : row.attendee_phone
+      setPendingCheckIn({ table: event.is_paid ? 'tickets' : 'registrations', id: row.id, name, phone })
+      setResult({ ok: true, message: `Name: ${name}${phone ? ` · Phone: ${phone}` : ''} · ${event.title}` })
     } finally {
       setCheckingIn(false)
     }
+  }
+
+  async function confirmCheckIn() {
+    if (!pendingCheckIn) return
+    setCheckingIn(true)
+    const { error } = await supabase.from(pendingCheckIn.table).update({ checked_in_at: new Date().toISOString() }).eq('id', pendingCheckIn.id)
+    setCheckingIn(false)
+    if (error) {
+      setResult({ ok: false, message: `Could not complete check-in: ${error.message}` })
+      return
+    }
+    setResult({ ok: true, message: `Checked in: ${pendingCheckIn.name}` })
+    setPendingCheckIn(null)
+    setCode('')
+    confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } })
   }
 
   async function checkIn(e: React.FormEvent) {
@@ -2349,7 +2356,7 @@ function CheckInPanel({ event }: { event: EventRow }) {
           onChange={(e) => setCode(e.target.value)}
           className="flex-1 rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper placeholder:text-muted"
         />
-        <button disabled={checkingIn || scanning} className="rounded-lg bg-gold px-5 py-2 font-medium text-ink disabled:opacity-60">{checkingIn ? 'Checking…' : 'Check in'}</button>
+        <button disabled={checkingIn || scanning || !code.trim()} className="rounded-lg bg-gold px-5 py-2 font-medium text-ink disabled:opacity-60">{checkingIn ? 'Looking up…' : 'Look up code'}</button>
         <button type="button" disabled={checkingIn} onClick={() => { setScannerError(''); setScanning((s) => !s) }} className="rounded-lg border border-black/15 px-4 py-2 text-sm text-paper disabled:opacity-60">
           {scanning ? 'Stop camera' : 'Scan QR'}
         </button>
@@ -2358,6 +2365,11 @@ function CheckInPanel({ event }: { event: EventRow }) {
       {scanning && <div id="qr-reader" className="mt-3 max-w-xs" />}
       {result && (
         <p className={`mt-3 text-sm ${result.ok ? 'text-gold' : 'text-flame'}`}>{result.message}</p>
+      )}
+      {pendingCheckIn && (
+        <button type="button" onClick={confirmCheckIn} disabled={checkingIn} className="mt-4 rounded-lg bg-flame px-5 py-2 font-medium text-ink disabled:opacity-60">
+          {checkingIn ? 'Confirming…' : 'Confirm check-in'}
+        </button>
       )}
     </div>
   )

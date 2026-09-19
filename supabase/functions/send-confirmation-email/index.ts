@@ -44,9 +44,11 @@ Deno.serve(async (req: Request) => {
   } else if (type === 'order') {
     const { data: order } = await supabase.from('orders').select('*, events(title, start_datetime, venue_name)').eq('id', record_id).single()
     if (!order || !order.buyer_email) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: corsHeaders })
+    const { data: tickets } = await supabase.from('tickets').select('ticket_code').eq('order_id', order.id).order('created_at', { ascending: true })
+    const ticketCodes = (tickets ?? []).map((ticket) => escapeHtml(ticket.ticket_code)).join(', ')
     to = order.buyer_email
     subject = `Your ticket: ${order.events?.title ?? 'Your event'}`
-    html = `<p>Hi ${escapeHtml(order.buyer_full_name)},</p><p>Your ticket for <strong>${escapeHtml(order.events?.title ?? '')}</strong> is confirmed.</p><p>Your ticket code: <strong>${escapeHtml(order.ticket_code)}</strong></p><p>Show this code at the door.</p>`
+    html = `<p>Hi ${escapeHtml(order.buyer_full_name)},</p><p>Your ticket for <strong>${escapeHtml(order.events?.title ?? '')}</strong> is confirmed.</p><p>Your ticket code${(tickets ?? []).length === 1 ? '' : 's'}: <strong>${ticketCodes}</strong></p><p>Each ticket is checked in separately, so make sure everyone in your group has their own code.</p>`
   } else if (type === 'membership') {
     const { data: member } = await supabase.from('members').select('*').eq('id', record_id).single()
     if (!member || !member.email) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: corsHeaders })

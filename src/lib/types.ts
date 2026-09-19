@@ -78,9 +78,15 @@ export type Order = {
   total_amount: number
   payment_status: 'pending' | 'paid' | 'failed' | 'refunded'
   payment_reference: string | null
+  created_at: string
+}
+
+export type Ticket = {
+  id: string
+  order_id: string
   ticket_code: string
   checked_in_at: string | null
-  created_at: string
+  created_at?: string
 }
 
 export type Member = {
