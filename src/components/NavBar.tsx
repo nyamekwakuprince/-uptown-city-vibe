@@ -99,7 +99,7 @@ export default function NavBar() {
           </form>
 
           {isAdmin ? (
-            <nav className="hidden items-center gap-5 text-sm text-muted sm:flex">
+            <nav className={`${isDashboardRoute ? 'flex' : 'hidden'} items-center gap-5 text-sm text-muted sm:flex`}>
               <div ref={profileMenuRef} className="relative">
                 <button type="button" aria-label="Open profile menu" onClick={() => setProfileOpen((open) => !open)} className="flex h-9 w-9 items-center justify-center rounded-full bg-gold font-semibold text-ink hover:brightness-95">
                   {initial}
