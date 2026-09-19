@@ -227,7 +227,7 @@ export default function EventDetail() {
                     className="rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper"
                   />
                 </div>
-                <Fields form={form} setForm={setForm} />
+                <Fields form={form} setForm={setForm} phoneRequired />
                 {ticket && (
                   <p className="text-sm text-muted">
                     Total: <span className="text-paper">{formatGHS(ticket.price * quantity)}</span> — paid directly to {event.organizations?.name}
@@ -290,7 +290,7 @@ function isRegistrationOpen(event: EventRow, registrationCount: number) {
   return true
 }
 
-function Fields({ form, setForm }: { form: { name: string; email: string; phone: string; nickname: string; whatsapp_number: string; location: string }; setForm: (f: any) => void }) {
+function Fields({ form, setForm, phoneRequired = false }: { form: { name: string; email: string; phone: string; nickname: string; whatsapp_number: string; location: string }; setForm: (f: any) => void; phoneRequired?: boolean }) {
   return (
     <div className="grid gap-3">
       <input
@@ -310,6 +310,8 @@ function Fields({ form, setForm }: { form: { name: string; email: string; phone:
           className="rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper placeholder:text-muted"
         />
         <input
+          required={phoneRequired}
+          type="tel"
           placeholder="Phone"
           value={form.phone}
           onChange={(e) => setForm({ ...form, phone: e.target.value })}

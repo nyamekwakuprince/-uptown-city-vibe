@@ -1114,6 +1114,10 @@ type UnifiedAttendee = {
   rawRegistration?: Registration
 }
 
+function csvCell(value: unknown) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`
+}
+
 function AttendeesPage() {
   const { profile } = useAuth()
   const navigate = useNavigate()
@@ -1232,10 +1236,10 @@ function AttendeesPage() {
   function exportCsv() {
     const headers = ['Name', 'Email', 'Phone', 'Event', 'Date', 'Type', 'Amount', 'Ticket/RSVP Code', 'Status', 'Admissions', 'Checked In At', 'Registered At']
     const rows = filtered.map((a) => [
-      `"${a.name || ''}"`,
-      `"${a.email || ''}"`,
-      `"${a.phone || ''}"`,
-      `"${a.eventTitle || ''}"`,
+      a.name,
+      a.email,
+      a.phone,
+      a.eventTitle,
       a.eventDate ? new Date(a.eventDate).toLocaleDateString() : '',
       a.type === 'paid' ? 'Paid Ticket' : 'Free RSVP',
       a.amount !== undefined ? formatGHS(a.amount) : 'Free',
@@ -1245,8 +1249,8 @@ function AttendeesPage() {
       a.checkedInAt ? new Date(a.checkedInAt).toLocaleString() : 'No',
       new Date(a.createdAt).toLocaleString(),
     ])
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const csv = [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')
+    const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = `attendees-roster-${new Date().toISOString().slice(0, 10)}.csv`
