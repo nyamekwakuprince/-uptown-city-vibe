@@ -18,6 +18,8 @@ import {
   DashboardEventEditPage,
   DashboardEventsPage,
   DashboardEventsListPage,
+  DashboardCheckInPage,
+  DashboardCheckInEventPage,
   DashboardGalleryPage,
   DashboardGalleryEventPage,
   DashboardPhotosPage,
@@ -99,6 +101,8 @@ function AppShell() {
               <Route path="events/new" element={<DashboardNewEventPage />} />
               <Route path="events/:id" element={<DashboardEventPage />} />
               <Route path="events/:id/edit" element={<DashboardEventEditPage />} />
+              <Route path="checkin" element={<DashboardCheckInPage />} />
+              <Route path="checkin/:eventId" element={<DashboardCheckInEventPage />} />
               <Route path="attendees" element={<DashboardAttendeesPage />} />
               <Route path="revenue" element={<DashboardRevenuePage />} />
               <Route path="members" element={<DashboardMembersPage />} />

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Html5Qrcode } from 'html5-qrcode'
 import confetti from 'canvas-confetti'
 import { supabase, formatDate, formatGHS, callFunction, sendConfirmationEmail } from '../lib/supabase'
@@ -172,6 +172,90 @@ export function DashboardEventsListPage({ category }: { category: 'ongoing' | 'u
         onConfirm={deleteEvent}
         onCancel={() => { if (!deleting) setDeletingEventId(null) }}
       />
+    </div>
+  )
+}
+
+export function DashboardCheckInPage() {
+  const { profile } = useAuth()
+  const navigate = useNavigate()
+  const { events } = useOrganizationEvents(profile?.organization_id ?? null)
+  const now = Date.now()
+  const checkInEvents = events.filter((event) => event.status === 'published' && !isPastEvent(event, now))
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="display text-2xl text-paper">Check-in</h2>
+        <p className="text-sm text-muted">Choose an ongoing or upcoming event to scan tickets and registrations.</p>
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {checkInEvents.map((event) => (
+          <div
+            key={event.id}
+            role="link"
+            tabIndex={0}
+            onClick={() => navigate(`/dashboard/checkin/${event.id}`)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/dashboard/checkin/${event.id}`) }}
+            className="group cursor-pointer overflow-hidden rounded-xl border border-black/10 bg-surface focus:outline-none focus:ring-2 focus:ring-gold"
+          >
+            <div className="relative flex aspect-[4/3] items-center justify-center bg-surface-light">
+              {event.banner_image_url ? <img src={event.banner_image_url} alt={`${event.title} flyer`} className="h-full w-full object-cover" /> : <span className="display text-4xl text-muted">{event.title[0]}</span>}
+            </div>
+            <div className="p-4"><h3 className="display text-lg text-paper">{event.title}</h3><p className="mt-1 text-sm text-muted">{formatDate(event.start_datetime)}</p></div>
+          </div>
+        ))}
+        {checkInEvents.length === 0 && <p className="text-sm text-muted">No ongoing or upcoming published events.</p>}
+      </div>
+    </div>
+  )
+}
+
+export function DashboardCheckInEventPage() {
+  const { profile } = useAuth()
+  const { eventId } = useParams()
+  const navigate = useNavigate()
+  const [event, setEvent] = useState<EventRow | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadEvent() {
+      if (!eventId || !profile?.organization_id) {
+        setLoading(false)
+        return
+      }
+      const { data } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', eventId)
+        .eq('organization_id', profile.organization_id)
+        .eq('status', 'published')
+        .is('deleted_at', null)
+        .single()
+      setEvent((data as EventRow) ?? null)
+      setLoading(false)
+    }
+    loadEvent()
+  }, [eventId, profile?.organization_id])
+
+  if (loading) return <p className="py-8 text-muted">Loading event…</p>
+  if (!event) return <p className="py-8 text-muted">Event not found.</p>
+
+  const isPast = isPastEvent(event, Date.now())
+
+  return (
+    <div>
+      <button type="button" onClick={() => navigate('/dashboard/checkin')} className="mb-6 text-sm text-muted hover:text-paper">← Back to check-in</button>
+      <div className="mb-6">
+        <p className="text-sm uppercase tracking-widest text-flame">Check-in</p>
+        <h2 className="display mt-1 text-2xl text-paper">{event.title}</h2>
+        <p className="mt-1 text-sm text-muted">{formatDate(event.start_datetime)}</p>
+      </div>
+      {isPast ? (
+        <p className="rounded-lg border border-flame/20 bg-flame/10 p-4 text-sm text-flame">Check-in is closed because this event has passed.</p>
+      ) : (
+        <CheckInPanel event={event} />
+      )}
     </div>
   )
 }
@@ -616,7 +700,6 @@ export function DashboardEventEditPage() {
 function DashboardEventScreen({ editing }: { editing: boolean }) {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const [event, setEvent] = useState<EventRow | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
@@ -653,7 +736,6 @@ function DashboardEventScreen({ editing }: { editing: boolean }) {
   if (loading) return <p className="py-8 text-muted">Loading event…</p>
   if (!event) return <p className="py-8 text-muted">Event not found.</p>
 
-  const queryTab = searchParams.get('tab') as 'edit' | 'attendees' | 'checkin' | null
   const isPast = isPastEvent(event, Date.now())
 
   return (
@@ -700,8 +782,6 @@ function DashboardEventScreen({ editing }: { editing: boolean }) {
         ) : (
           <EventManager
             event={event}
-            defaultTab={queryTab === 'checkin' ? 'checkin' : 'attendees'}
-            isPast={isPast}
           />
         )}
       </div>
@@ -1675,48 +1755,22 @@ function RevenuePage() {
 
 function EventManager({
   event,
-  defaultTab,
-  isPast,
 }: {
   event: EventRow
-  defaultTab?: 'attendees' | 'checkin'
-  isPast: boolean
 }) {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const urlTab = searchParams.get('tab') as 'edit' | 'attendees' | 'checkin' | null
-  const initialTab = urlTab === 'checkin' && !isPast ? 'checkin' : (defaultTab ?? 'attendees')
-
-  const [tab, setTab] = useState<'attendees' | 'checkin'>(initialTab)
-
-  useEffect(() => {
-    const q = searchParams.get('tab') as 'edit' | 'attendees' | 'checkin' | null
-    if ((q === 'attendees' || q === 'checkin') && q !== tab && !(isPast && q === 'checkin')) {
-      setTab(q)
-    }
-  }, [searchParams, tab])
-
-  const selectTab = (newTab: 'attendees' | 'checkin') => {
-    if (isPast && newTab !== 'attendees') return
-    setTab(newTab)
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
-      next.set('tab', newTab)
-      return next
-    })
-  }
+  const navigate = useNavigate()
 
   return (
     <div className="mt-6 border-t border-black/10 pt-6">
       <div className="mb-5 flex flex-wrap gap-2 text-sm">
-        <TabButton active={tab === 'attendees'} onClick={() => selectTab('attendees')}>
+        <TabButton active={false} onClick={() => navigate(`/dashboard/events/${event.id}/edit`)}>
+          Edit details
+        </TabButton>
+        <TabButton active onClick={() => undefined}>
           {event.is_paid ? 'Orders & Sales' : 'Attendees'}
         </TabButton>
-        <TabButton active={tab === 'checkin'} disabled={isPast} onClick={() => selectTab('checkin')}>
-          Check-in & QR
-        </TabButton>
       </div>
-      {tab === 'attendees' && <AttendeesPanel event={event} />}
-      {tab === 'checkin' && !isPast && <CheckInPanel event={event} />}
+      <AttendeesPanel event={event} />
     </div>
   )
 }
