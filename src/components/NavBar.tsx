@@ -7,6 +7,7 @@ export default function NavBar() {
   const navigate = useNavigate()
   const location = useLocation()
   const [profileOpen, setProfileOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState(() => new URLSearchParams(location.search).get('search') ?? '')
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const isDashboardRoute = location.pathname.startsWith('/dashboard')
@@ -22,6 +23,7 @@ export default function NavBar() {
 
   useEffect(() => {
     setSearchQuery(new URLSearchParams(location.search).get('search') ?? '')
+    setMobileMenuOpen(false)
   }, [location.search])
 
   function submitSearch(event: React.FormEvent<HTMLFormElement>) {
@@ -38,9 +40,9 @@ export default function NavBar() {
   return (
     <header className="sticky top-0 z-40 border-b border-black/10 bg-ink/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-        <Link to="/" className="flex min-w-0 items-center gap-2.5 text-ink">
+        <Link to="/" className="flex min-w-0 items-center gap-2.5 text-paper">
           <img src="/uptown-city-vibez-logo.png" alt="Uptown City Vibez logo" className="h-9 w-9 shrink-0 object-contain" />
-          <span className="display truncate text-base font-semibold tracking-tight text-ink sm:text-xl">Uptown City Vibez</span>
+          <span className="display hidden truncate text-base font-semibold tracking-tight text-paper sm:inline sm:text-xl">Uptown City Vibez</span>
         </Link>
 
         <div className="flex items-center gap-3 sm:gap-4">
@@ -51,7 +53,7 @@ export default function NavBar() {
             </nav>
           )}
 
-          <form onSubmit={submitSearch} className="relative w-full max-w-[210px] sm:block">
+          <form onSubmit={submitSearch} className="relative hidden w-full max-w-[210px] sm:block">
             <input
               type="search"
               aria-label="Search events"
@@ -66,7 +68,7 @@ export default function NavBar() {
           </form>
 
           {isAdmin ? (
-            <nav className="flex items-center gap-5 text-sm text-muted">
+            <nav className="hidden items-center gap-5 text-sm text-muted sm:flex">
               <div ref={profileMenuRef} className="relative">
                 <button type="button" aria-label="Open profile menu" onClick={() => setProfileOpen((open) => !open)} className="flex h-9 w-9 items-center justify-center rounded-full bg-gold font-semibold text-ink hover:brightness-95">
                   {initial}
@@ -87,7 +89,39 @@ export default function NavBar() {
               </div>
             </nav>
           ) : null}
+
+          <button
+            type="button"
+            aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-black/15 text-paper sm:hidden"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              {mobileMenuOpen
+                ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
+                : <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />}
+            </svg>
+          </button>
         </div>
+
+        {mobileMenuOpen && (
+          <nav className="basis-full border-t border-black/10 pt-3 sm:hidden">
+            {!isDashboardRoute && (
+              <div className="flex flex-col gap-1 text-sm text-muted">
+                <Link to="/" className="rounded-lg px-3 py-2 hover:bg-black/5 hover:text-paper">Home</Link>
+                <Link to="/membership" className="rounded-lg px-3 py-2 hover:bg-black/5 hover:text-paper">Membership</Link>
+              </div>
+            )}
+            {isAdmin && (
+              <div className={`${isDashboardRoute ? '' : 'mt-2 border-t border-black/10 pt-2'} flex flex-col gap-1 text-sm text-muted`}>
+                <button type="button" onClick={() => { setMobileMenuOpen(false); navigate('/dashboard') }} className="rounded-lg px-3 py-2 text-left hover:bg-black/5 hover:text-paper">Dashboard</button>
+                <Link to="/" className="rounded-lg px-3 py-2 hover:bg-black/5 hover:text-paper">View site</Link>
+                <button type="button" onClick={async () => { setMobileMenuOpen(false); await signOut(); navigate('/') }} className="rounded-lg px-3 py-2 text-left text-flame hover:bg-flame/10">Sign out</button>
+              </div>
+            )}
+          </nav>
+        )}
       </div>
     </header>
   )

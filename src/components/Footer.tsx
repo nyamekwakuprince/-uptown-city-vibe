@@ -11,7 +11,7 @@ export default function Footer() {
           </div>
           <form className="flex w-full max-w-md overflow-hidden rounded-full bg-white p-1" onSubmit={(event) => event.preventDefault()}>
             <label htmlFor="footer-email" className="sr-only">Email address</label>
-            <input id="footer-email" type="email" required placeholder="Your email address" className="min-w-0 flex-1 bg-transparent px-4 text-sm text-[#071333] outline-none placeholder:text-[#071333]/50" />
+            <input id="footer-email" type="email" required placeholder="Your email address" className="min-w-0 flex-1 bg-transparent px-4 text-base text-[#071333] outline-none placeholder:text-[#071333]/50" />
             <button type="submit" aria-label="Subscribe to newsletter" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-flame text-lg font-bold text-white transition hover:brightness-110">↗</button>
           </form>
         </div>
