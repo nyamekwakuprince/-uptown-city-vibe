@@ -16,14 +16,37 @@
 @layer base {
   html {
     background-color: var(--color-ink);
+    overflow-x: hidden;
   }
   body {
     font-family: var(--font-body);
     background-color: var(--color-ink);
     color: var(--color-paper);
+    overflow-x: hidden;
   }
   h1, h2, h3, .display {
     font-family: var(--font-display);
+  }
+  input, textarea, select, button {
+    font: inherit;
+  }
+  input, textarea, select {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  textarea {
+    resize: vertical;
+  }
+  #qr-reader {
+    width: 100%;
+    max-width: 100%;
+  }
+  #qr-reader video,
+  #qr-reader canvas {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    display: block;
   }
 }
 

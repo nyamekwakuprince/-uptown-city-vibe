@@ -50,7 +50,7 @@ export default function SearchResults() {
       {!loading && !error && upcoming.length > 0 && (
         <section className="mt-10">
           <h2 className="display text-2xl text-paper">Upcoming events</h2>
-          <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {upcoming.map((event) => <SearchEventCard key={event.id} event={event} href={`/events/${event.slug}`} />)}
           </div>
         </section>
@@ -59,7 +59,7 @@ export default function SearchResults() {
       {!loading && !error && past.length > 0 && (
         <section className="mt-12">
           <h2 className="display text-2xl text-paper">Past events</h2>
-          <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {past.map((event) => <SearchEventCard key={event.id} event={event} href={`/past-events/${event.id}`} />)}
           </div>
         </section>

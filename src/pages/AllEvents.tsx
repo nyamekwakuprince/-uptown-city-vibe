@@ -45,7 +45,7 @@ function EventGroup({ title, events, empty }: { title: string; events: EventRow[
     <section className="mt-10">
       <h2 className="display text-2xl text-paper">{title}</h2>
       {events.length === 0 ? <p className="mt-4 text-muted">{empty}</p> : (
-        <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {events.map((event) => (
             <Link key={event.id} to={new Date(event.end_datetime ?? event.start_datetime).getTime() >= Date.now() ? `/events/${event.slug}` : `/past-events/${event.id}`} className="group overflow-hidden rounded-xl border border-black/10 bg-surface transition hover:-translate-y-1 hover:border-black/25 hover:shadow-md">
               <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-surface-light">

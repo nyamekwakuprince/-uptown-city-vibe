@@ -68,7 +68,7 @@ export default function Gallery() {
           <p className="mt-1 text-sm text-muted">
             {new Date(selectedGallery.event.start_datetime).toLocaleDateString('en-GH', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {selectedGallery.images.map((image, index) => (
               <button key={image.id} onClick={() => openPhoto(selectedGallery.event.id, index)} className="aspect-square overflow-hidden rounded-xl bg-surface">
                 <img src={image.image_url} alt={image.caption ?? selectedGallery.event.title} className="h-full w-full object-cover transition hover:scale-105" />
@@ -84,8 +84,8 @@ export default function Gallery() {
               {activeGallery.images.length > 1 && (
                 <button type="button" onClick={() => movePhoto(-1)} aria-label="Previous photo" className="absolute left-2 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/70 bg-black/70 text-4xl leading-none text-white shadow-lg transition hover:bg-flame hover:text-ink sm:left-4">‹</button>
               )}
-              <div className="max-w-3xl px-2 text-center">
-                <img src={activeImage.image_url} alt={activeImage.caption ?? activeGallery.event.title} className="max-h-[78vh] rounded-lg object-contain" />
+              <div className="w-full max-w-3xl px-2 text-center">
+                <img src={activeImage.image_url} alt={activeImage.caption ?? activeGallery.event.title} className="max-h-[78vh] w-full rounded-lg object-contain" />
                 <p className="mt-3 text-sm text-muted">{activeGallery.event.title} · {activeIndex + 1} of {activeGallery.images.length}</p>
                 {activeImage.caption && <p className="mt-1 text-paper">{activeImage.caption}</p>}
               </div>

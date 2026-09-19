@@ -2418,6 +2418,7 @@ function CheckInPanel({ event }: { event: EventRow }) {
     let disposed = false
     let started = false
     let stopping = false
+    const qrSize = Math.min(260, Math.max(180, window.innerWidth - 48))
 
     async function stopScanner() {
       if (!started || stopping) return
@@ -2431,7 +2432,7 @@ function CheckInPanel({ event }: { event: EventRow }) {
 
     scanner.start(
       { facingMode: 'environment' },
-      { fps: 10, qrbox: 220 },
+      { fps: 10, qrbox: { width: qrSize, height: qrSize } },
       (decodedText) => {
         if (stopped || disposed) return
         stopped = true
@@ -2458,28 +2459,30 @@ function CheckInPanel({ event }: { event: EventRow }) {
 
   return (
     <div>
-      <form onSubmit={checkIn} className="flex gap-2">
+      <form onSubmit={checkIn} className="flex flex-col gap-3 sm:flex-row">
         <input
           autoFocus
           placeholder="Enter or scan code"
           value={code}
           disabled={checkingIn || scanning}
           onChange={(e) => setCode(e.target.value)}
-          className="flex-1 rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper placeholder:text-muted"
+          className="min-h-12 flex-1 rounded-lg border border-black/15 bg-ink px-3 py-3 text-base text-paper placeholder:text-muted"
         />
-        <button disabled={checkingIn || scanning || !code.trim()} className="rounded-lg bg-gold px-5 py-2 font-medium text-ink disabled:opacity-60">{checkingIn ? 'Looking up…' : 'Look up code'}</button>
-        <button type="button" disabled={checkingIn} onClick={() => { setScannerError(''); setScanning((s) => !s) }} className="rounded-lg border border-black/15 px-4 py-2 text-sm text-paper disabled:opacity-60">
-          {scanning ? 'Stop camera' : 'Scan QR'}
-        </button>
+        <div className="flex gap-2 sm:flex-row">
+          <button disabled={checkingIn || scanning || !code.trim()} className="min-h-12 rounded-lg bg-gold px-5 py-3 text-sm font-medium text-ink disabled:opacity-60 sm:text-base">{checkingIn ? 'Looking up…' : 'Look up code'}</button>
+          <button type="button" disabled={checkingIn} onClick={() => { setScannerError(''); setScanning((s) => !s) }} className="min-h-12 rounded-lg border border-black/15 px-4 py-3 text-sm text-paper disabled:opacity-60 sm:text-base">
+            {scanning ? 'Stop camera' : 'Scan QR'}
+          </button>
+        </div>
       </form>
       {scannerError && <p className="mt-3 text-sm text-flame">{scannerError}</p>}
-      {scanning && <div id="qr-reader" className="mt-3 max-w-xs" />}
+      {scanning && <div id="qr-reader" className="mt-3 w-full max-w-md overflow-hidden rounded-xl border border-black/10 bg-black/5" />}
       {result && (
         <p className={`mt-3 text-sm ${result.ok ? 'text-gold' : 'text-flame'}`}>{result.message}</p>
       )}
       {pendingCheckIn && (
         pendingCheckIn.table === 'registrations' || pendingCheckIn.checkInCount < pendingCheckIn.maxAdmits ? (
-          <button type="button" onClick={confirmCheckIn} disabled={checkingIn} className="mt-4 rounded-lg bg-flame px-5 py-2 font-medium text-ink disabled:opacity-60">
+          <button type="button" onClick={confirmCheckIn} disabled={checkingIn} className="mt-4 min-h-12 rounded-lg bg-flame px-5 py-3 text-sm font-medium text-ink disabled:opacity-60 sm:text-base">
             {checkingIn ? 'Confirming…' : 'Confirm check-in'}
           </button>
         ) : null

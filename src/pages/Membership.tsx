@@ -46,7 +46,7 @@ export default function Membership() {
     setSubmitted(true)
   }
 
-  const inputClass = "rounded-lg border border-black/15 bg-surface px-3 py-2 text-paper placeholder:text-muted"
+  const inputClass = "w-full rounded-lg border border-black/15 bg-surface px-3 py-3 text-base text-paper placeholder:text-muted"
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-16">

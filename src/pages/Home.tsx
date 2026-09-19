@@ -202,7 +202,7 @@ export default function Home() {
         ) : filtered.length === 0 ? (
           <p className="text-muted">No events right now — check back soon.</p>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((event) => <EventCard key={event.id} event={event} href={`/events/${event.slug}`} />)}
           </div>
         )}
@@ -212,7 +212,7 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-5 pb-20">
         <h2 className="display text-3xl text-paper">Past Events</h2>
         <p className="mt-2 text-muted">Moments from our events.</p>
-        <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {eventGalleries.map(({ event, images }) => <EventCard key={event.id} event={event} href={`/past-events/${event.id}`} photoCount={images.length} fallbackImage={images[0]?.image_url} />)}
             {eventGalleries.length === 0 && <p className="text-muted">No past event photos yet.</p>}
           </div>

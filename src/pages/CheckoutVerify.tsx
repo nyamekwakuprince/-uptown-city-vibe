@@ -82,8 +82,8 @@ export default function CheckoutVerify() {
           {ticketCodes.length > 1 && <p className="mt-4 text-sm text-muted">Each ticket is checked in separately, so make sure everyone in your group has their own code.</p>}
           <div className="my-6 flex w-full flex-col items-center gap-4">
             {ticketCodes.map((ticketCode) => (
-              <div key={ticketCode} className="flex w-full flex-col items-center justify-center rounded-2xl border border-black/10 bg-white p-5 shadow-xs">
-                <QRCodeCanvas id={`qr-canvas-${ticketCode}`} value={ticketCode} size={170} />
+              <div key={ticketCode} className="flex w-full max-w-[260px] flex-col items-center justify-center rounded-2xl border border-black/10 bg-white p-4 shadow-xs sm:max-w-[300px]">
+                <QRCodeCanvas id={`qr-canvas-${ticketCode}`} value={ticketCode} size={170} className="h-auto w-full max-w-[170px]" />
                 <p className="display mt-3 font-mono text-base font-bold tracking-wider text-flame">{ticketCode}</p>
               </div>
             ))}

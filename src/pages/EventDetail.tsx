@@ -158,7 +158,7 @@ export default function EventDetail() {
   const isEventPast = eventEndTime < now
 
   return (
-    <div className="mx-auto max-w-3xl px-5 py-12">
+    <div className="mx-auto max-w-3xl px-4 py-12 sm:px-5">
       <button
         type="button"
         onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
@@ -210,7 +210,7 @@ export default function EventDetail() {
                   <select
                     value={selectedTicket}
                     onChange={(e) => setSelectedTicket(e.target.value)}
-                    className="rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper"
+                    className="w-full rounded-lg border border-black/15 bg-ink px-3 py-3 text-base text-paper"
                   >
                     {availableTicketTypes.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -224,7 +224,7 @@ export default function EventDetail() {
                     max={10}
                     value={quantity}
                     onChange={(e) => setQuantity(Number(e.target.value))}
-                    className="rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper"
+                    className="w-full rounded-lg border border-black/15 bg-ink px-3 py-3 text-base text-paper"
                   />
                 </div>
                 <Fields form={form} setForm={setForm} phoneRequired />
@@ -298,7 +298,7 @@ function Fields({ form, setForm, phoneRequired = false }: { form: { name: string
         placeholder="Full name"
         value={form.name}
         onChange={(e) => setForm({ ...form, name: e.target.value })}
-        className="rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper placeholder:text-muted"
+        className="w-full rounded-lg border border-black/15 bg-ink px-3 py-3 text-base text-paper placeholder:text-muted"
       />
       <div className="grid gap-3 sm:grid-cols-2">
         <input
@@ -307,7 +307,7 @@ function Fields({ form, setForm, phoneRequired = false }: { form: { name: string
           placeholder="Email"
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
-          className="rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper placeholder:text-muted"
+          className="w-full rounded-lg border border-black/15 bg-ink px-3 py-3 text-base text-paper placeholder:text-muted"
         />
         <input
           required={phoneRequired}
@@ -315,13 +315,13 @@ function Fields({ form, setForm, phoneRequired = false }: { form: { name: string
           placeholder="Phone"
           value={form.phone}
           onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          className="rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper placeholder:text-muted"
+          className="w-full rounded-lg border border-black/15 bg-ink px-3 py-3 text-base text-paper placeholder:text-muted"
         />
       </div>
-      <input placeholder="Nickname (optional)" value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} className="rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper placeholder:text-muted" />
+      <input placeholder="Nickname (optional)" value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} className="w-full rounded-lg border border-black/15 bg-ink px-3 py-3 text-base text-paper placeholder:text-muted" />
       <div className="grid gap-3 sm:grid-cols-2">
-        <input placeholder="WhatsApp number (optional)" value={form.whatsapp_number} onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} className="rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper placeholder:text-muted" />
-        <input placeholder="Location (optional)" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper placeholder:text-muted" />
+        <input placeholder="WhatsApp number (optional)" value={form.whatsapp_number} onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} className="w-full rounded-lg border border-black/15 bg-ink px-3 py-3 text-base text-paper placeholder:text-muted" />
+        <input placeholder="Location (optional)" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="w-full rounded-lg border border-black/15 bg-ink px-3 py-3 text-base text-paper placeholder:text-muted" />
       </div>
     </div>
   )
