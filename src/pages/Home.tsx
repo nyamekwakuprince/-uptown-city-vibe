@@ -1,17 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { supabase, formatDate } from '../lib/supabase'
+import { supabase, formatDate, formatGHS } from '../lib/supabase'
 import type { EventRow, GalleryImage, Organization, TicketType } from '../lib/types'
 
 type EventWithTickets = EventRow & { ticketTypes: TicketType[] }
-
-function eventPrice(event: EventWithTickets) {
-  if (!event.is_paid) return 'FREE'
-  const lowestPrice = event.ticketTypes.reduce<number | null>((lowest, ticket) => (
-    lowest === null ? ticket.price : Math.min(lowest, ticket.price)
-  ), null)
-  return lowestPrice === null ? 'TICKETS' : `GHc ${lowestPrice.toLocaleString('en-GH')}`
-}
 
 function HeroGallery({ images }: { images: GalleryImage[] }) {
   if (images.length === 0) {
@@ -61,9 +53,25 @@ function EventCard({ event, href, photoCount, fallbackImage }: { event: EventWit
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <h3 className="display line-clamp-2 text-lg text-paper">{event.title}</h3>
-          <span className="flex shrink-0 flex-col items-end leading-tight">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{photoCount ? 'Photos' : 'Ticket'}</span>
-            <span className="text-xl font-black text-flame">{photoCount ? photoCount : eventPrice(event)}</span>
+          <span className="flex max-w-[9rem] shrink-0 flex-col items-end leading-tight text-right">
+            {photoCount ? (
+              <>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted">Photos</span>
+                <span className="text-xl font-black text-flame">{photoCount}</span>
+              </>
+            ) : event.is_paid ? (
+              event.ticketTypes.length > 0 ? (
+                event.ticketTypes.map((ticket) => (
+                  <span key={ticket.id} className="text-sm font-semibold text-flame">
+                    {ticket.name}: {formatGHS(ticket.price)}
+                  </span>
+                ))
+              ) : (
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted">Tickets</span>
+              )
+            ) : (
+              <span className="text-sm font-bold uppercase tracking-wider text-flame">Free</span>
+            )}
           </span>
         </div>
         <p className="mt-1 text-sm text-muted">{formatDate(event.start_datetime)}</p>
