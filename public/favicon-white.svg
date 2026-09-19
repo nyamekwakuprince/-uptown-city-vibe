@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200">
+  <defs>
+    <filter id="white-logo" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="table" tableValues="1 1" />
+        <feFuncG type="table" tableValues="1 1" />
+        <feFuncB type="table" tableValues="1 1" />
+      </feComponentTransfer>
+    </filter>
+  </defs>
+  <image href="/uptown-city-vibez-logo.png" width="1200" height="1200" preserveAspectRatio="xMidYMid meet" filter="url(#white-logo)" />
+</svg>

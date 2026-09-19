@@ -38,8 +38,9 @@ export default function NavBar() {
   return (
     <header className="sticky top-0 z-40 border-b border-black/10 bg-ink/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-        <Link to="/" className="display text-xl font-semibold tracking-tight text-paper">
-          Uptown City Vibe
+        <Link to="/" className="flex items-center gap-2.5 text-paper">
+          <img src="/uptown-city-vibez-logo.png" alt="Uptown City Vibez logo" className="h-9 w-9 object-contain invert" />
+          <span className="display text-xl font-semibold tracking-tight">Uptown City Vibez</span>
         </Link>
 
         <div className="flex items-center gap-4">
