@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom'
 import { QRCodeCanvas } from 'qrcode.react'
 import confetti from 'canvas-confetti'
 import { supabase, callFunction, sendConfirmationEmail } from '../lib/supabase'
-import { generateAndDownloadReceipt } from '../lib/receipt'
+import { generateAndDownloadReceiptsPdf } from '../lib/receipt'
 import type { Order, EventRow } from '../lib/types'
 
 type OrderWithEvent = Order & { events?: EventRow }
@@ -48,20 +48,19 @@ export default function CheckoutVerify() {
 
   function handleDownloadReceipt() {
     if (ticketCodes.length === 0) return
-    ticketCodes.forEach((ticketCode) => {
-      const qrCanvas = document.getElementById(`qr-canvas-${ticketCode}`) as HTMLCanvasElement | null
-      generateAndDownloadReceipt({
+    const receiptInfos = ticketCodes.map((ticketCode) => ({
         eventName: order?.events?.title || 'Event Ticket',
         eventDate: order?.events?.start_datetime,
         venueName: order?.events?.venue_name,
         venueAddress: order?.events?.venue_address,
         attendeeName: order?.buyer_full_name || 'Ticket Holder',
         code: ticketCode,
-        type: 'ticket',
+        type: 'ticket' as const,
         amount: order?.total_amount ? Number(order.total_amount) / ticketCodes.length : null,
         quantity: 1,
-      }, qrCanvas)
-    })
+    }))
+    const qrCanvases = ticketCodes.map((ticketCode) => document.getElementById(`qr-canvas-${ticketCode}`) as HTMLCanvasElement | null)
+    generateAndDownloadReceiptsPdf(receiptInfos, qrCanvases)
   }
 
   return (
@@ -101,7 +100,7 @@ export default function CheckoutVerify() {
               </svg>
               <span>Download receipt</span>
             </button>
-            <p className="text-xs text-muted">Download a digital ticket pass with QR code and event details</p>
+            <p className="text-xs text-muted">Download one PDF containing every ticket QR code and event detail</p>
           </div>
 
           <div className="mt-8 border-t border-black/10 pt-5">

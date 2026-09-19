@@ -1,4 +1,5 @@
 import { formatDate, formatGHS } from './supabase'
+import { jsPDF } from 'jspdf'
 
 export type ReceiptInfo = {
   eventName: string
@@ -62,17 +63,17 @@ function wrapText(
   return currentY
 }
 
-export function generateAndDownloadReceipt(
+function renderReceiptCanvas(
   info: ReceiptInfo,
   qrCanvasElement?: HTMLCanvasElement | null
-) {
+): HTMLCanvasElement | null {
   const canvas = document.createElement('canvas')
   const width = 1200
   const height = 1680
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')
-  if (!ctx) return
+  if (!ctx) return null
 
   // Base background
   ctx.fillStyle = '#F4F4F6'
@@ -241,11 +242,33 @@ export function generateAndDownloadReceipt(
   ctx.fillStyle = '#8E8E93'
   ctx.fillText('Present this receipt or scan QR code at venue check-in.', width / 2, currentY)
 
-  // Trigger download
+  return canvas
+}
+
+export function generateAndDownloadReceipt(
+  info: ReceiptInfo,
+  qrCanvasElement?: HTMLCanvasElement | null
+) {
+  const canvas = renderReceiptCanvas(info, qrCanvasElement)
+  if (!canvas) return
   const link = document.createElement('a')
   link.download = `${info.code || 'event'}-ticket-receipt.png`
   link.href = canvas.toDataURL('image/png')
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
+}
+
+export function generateAndDownloadReceiptsPdf(
+  infos: ReceiptInfo[],
+  qrCanvasElements: Array<HTMLCanvasElement | null>
+) {
+  if (infos.length === 0) return
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [1200, 1680], hotfixes: ['px_scaling'] })
+  infos.forEach((info, index) => {
+    if (index > 0) pdf.addPage([1200, 1680], 'portrait')
+    const canvas = renderReceiptCanvas(info, qrCanvasElements[index])
+    if (canvas) pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 1200, 1680)
+  })
+  pdf.save(`${infos[0].code || 'event'}-tickets.pdf`)
 }
