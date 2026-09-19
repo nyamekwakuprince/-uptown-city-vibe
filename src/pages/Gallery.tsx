@@ -80,17 +80,17 @@ export default function Gallery() {
 
       {activeImage && activeGallery && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-5" onClick={closeGallery}>
-            <div className="relative flex w-full max-w-5xl items-center justify-center gap-3" onClick={(event) => event.stopPropagation()}>
+            <div className="relative flex w-full max-w-5xl items-center justify-center" onClick={(event) => event.stopPropagation()}>
               {activeGallery.images.length > 1 && (
-                <button onClick={() => movePhoto(-1)} aria-label="Previous photo" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-paper/15 text-2xl text-paper hover:bg-paper/25">‹</button>
+                <button type="button" onClick={() => movePhoto(-1)} aria-label="Previous photo" className="absolute left-2 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/70 bg-black/70 text-4xl leading-none text-white shadow-lg transition hover:bg-flame hover:text-ink sm:left-4">‹</button>
               )}
-              <div className="max-w-3xl text-center">
+              <div className="max-w-3xl px-2 text-center">
                 <img src={activeImage.image_url} alt={activeImage.caption ?? activeGallery.event.title} className="max-h-[78vh] rounded-lg object-contain" />
                 <p className="mt-3 text-sm text-muted">{activeGallery.event.title} · {activeIndex + 1} of {activeGallery.images.length}</p>
                 {activeImage.caption && <p className="mt-1 text-paper">{activeImage.caption}</p>}
               </div>
               {activeGallery.images.length > 1 && (
-                <button onClick={() => movePhoto(1)} aria-label="Next photo" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-paper/15 text-2xl text-paper hover:bg-paper/25">›</button>
+                <button type="button" onClick={() => movePhoto(1)} aria-label="Next photo" className="absolute right-2 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/70 bg-black/70 text-4xl leading-none text-white shadow-lg transition hover:bg-flame hover:text-ink sm:right-4">›</button>
               )}
             </div>
           </div>
