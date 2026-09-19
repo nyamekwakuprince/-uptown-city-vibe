@@ -2,6 +2,17 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
+const dashboardNavItems = [
+  { to: '/dashboard', label: 'Overview', end: true },
+  { to: '/dashboard/events', label: 'Events', end: false },
+  { to: '/dashboard/checkin', label: 'Check-in', end: false },
+  { to: '/dashboard/attendees', label: 'Attendees', end: true },
+  { to: '/dashboard/revenue', label: 'Revenue', end: true },
+  { to: '/dashboard/members', label: 'Members', end: true },
+  { to: '/dashboard/photos', label: 'Photos', end: true },
+  { to: '/dashboard/trash', label: 'Trash', end: true },
+]
+
 export default function NavBar() {
   const { session, signOut, profile } = useAuth()
   const navigate = useNavigate()
@@ -12,6 +23,10 @@ export default function NavBar() {
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const isDashboardRoute = location.pathname.startsWith('/dashboard')
   const isAdmin = Boolean(session && (profile?.role === 'organizer_admin' || profile?.role === 'platform_admin'))
+  const isPlatformAdmin = profile?.role === 'platform_admin'
+  const mobileDashboardItems = isPlatformAdmin
+    ? [...dashboardNavItems, { to: '/dashboard/admin', label: 'Admin', end: true }]
+    : dashboardNavItems
 
   useEffect(() => {
     function closeProfileMenu(event: MouseEvent) {
@@ -40,14 +55,30 @@ export default function NavBar() {
   return (
     <header className="sticky top-0 z-40 border-b border-black/10 bg-ink/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-        <Link to="/" className="flex min-w-0 items-center gap-2.5 text-paper">
+        {isDashboardRoute && (
+          <button
+            type="button"
+            aria-label={mobileMenuOpen ? 'Close dashboard menu' : 'Open dashboard menu'}
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            className="order-1 flex h-10 w-10 items-center justify-center rounded-lg border border-black/15 text-paper sm:hidden"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              {mobileMenuOpen
+                ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
+                : <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />}
+            </svg>
+          </button>
+        )}
+
+        <Link to="/" className={`${isDashboardRoute ? 'order-2' : ''} flex min-w-0 items-center gap-2.5 text-paper`}>
           <img src="/uptown-city-vibez-logo.png" alt="Uptown City Vibez logo" className="h-9 w-9 shrink-0 object-contain" />
           <span className="display hidden truncate text-base font-semibold tracking-tight text-paper sm:inline sm:text-xl">Uptown City Vibez</span>
         </Link>
 
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className={`${isDashboardRoute ? 'order-3' : ''} flex items-center gap-3 sm:gap-4`}>
           {!isDashboardRoute && (
-            <nav className="hidden items-center gap-5 text-sm text-muted sm:flex">
+            <nav className={`${isDashboardRoute ? 'flex' : 'hidden'} items-center gap-5 text-sm text-muted sm:flex`}>
               <Link to="/" className="transition hover:text-paper">Home</Link>
               <Link to="/membership" className="transition hover:text-paper">Membership</Link>
             </nav>
@@ -90,7 +121,7 @@ export default function NavBar() {
             </nav>
           ) : null}
 
-          <button
+          {!isDashboardRoute && <button
             type="button"
             aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
             aria-expanded={mobileMenuOpen}
@@ -102,18 +133,25 @@ export default function NavBar() {
                 ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
                 : <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />}
             </svg>
-          </button>
+          </button>}
         </div>
 
         {mobileMenuOpen && (
-          <nav className="basis-full border-t border-black/10 pt-3 sm:hidden">
+          <nav className={`${isDashboardRoute ? 'order-4' : ''} basis-full border-t border-black/10 pt-3 sm:hidden`}>
+            {isDashboardRoute && (
+              <div className="flex flex-col gap-1 text-sm text-muted">
+                {mobileDashboardItems.map((item) => (
+                  <Link key={item.to} to={item.to} onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 hover:bg-black/5 hover:text-paper">{item.label}</Link>
+                ))}
+              </div>
+            )}
             {!isDashboardRoute && (
               <div className="flex flex-col gap-1 text-sm text-muted">
                 <Link to="/" className="rounded-lg px-3 py-2 hover:bg-black/5 hover:text-paper">Home</Link>
                 <Link to="/membership" className="rounded-lg px-3 py-2 hover:bg-black/5 hover:text-paper">Membership</Link>
               </div>
             )}
-            {isAdmin && (
+            {isAdmin && !isDashboardRoute && (
               <div className={`${isDashboardRoute ? '' : 'mt-2 border-t border-black/10 pt-2'} flex flex-col gap-1 text-sm text-muted`}>
                 <button type="button" onClick={() => { setMobileMenuOpen(false); navigate('/dashboard') }} className="rounded-lg px-3 py-2 text-left hover:bg-black/5 hover:text-paper">Dashboard</button>
                 <Link to="/" className="rounded-lg px-3 py-2 hover:bg-black/5 hover:text-paper">View site</Link>
