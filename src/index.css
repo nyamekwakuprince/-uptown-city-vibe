@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fraunces", serif;
+  --font-body: "Manrope", sans-serif;
+
+  --color-ink: #FFFFFF;
+  --color-surface: #F4F4F4;
+  --color-surface-light: #E8E8E8;
+  --color-gold: #E4102A;
+  --color-flame: #C81E2C;
+  --color-paper: #111111;
+  --color-muted: #6B6B6B;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-ink);
+  }
+  body {
+    font-family: var(--font-body);
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+  }
+  h1, h2, h3, .display {
+    font-family: var(--font-display);
+  }
+}
+
+@keyframes hero-gallery-up {
+  from { transform: translateY(0); }
+  to { transform: translateY(-50%); }
+}
+
+@keyframes hero-gallery-down {
+  from { transform: translateY(-50%); }
+  to { transform: translateY(0); }
+}
+
+.hero-gallery-track {
+  animation-duration: 18s;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+
+.hero-gallery-track-0,
+.hero-gallery-track-2 {
+  animation-name: hero-gallery-up;
+}
+
+.hero-gallery-track-1 {
+  animation-name: hero-gallery-down;
+  animation-duration: 22s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-gallery-track {
+    animation: none;
+  }
+}
