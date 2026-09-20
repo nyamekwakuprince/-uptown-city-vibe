@@ -302,7 +302,7 @@ export function DashboardPhotosPage() {
 
 export function DashboardBackButton() {
   const navigate = useNavigate()
-  return <button type="button" aria-label="Go back" onClick={() => navigate(-1)} className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-black/15 text-xl text-paper hover:bg-black/5">←</button>
+  return <button type="button" aria-label="Go back" onClick={() => navigate(-1)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-black/15 text-xl text-paper hover:bg-black/5">←</button>
 }
 
 export function DashboardTrashPage() {
@@ -356,9 +356,13 @@ export function DashboardTrashPage() {
 
   return (
     <div>
-      <DashboardBackButton />
-      <h2 className="display text-2xl text-paper">Trash</h2>
-      <p className="mt-1 text-sm text-muted">Deleted items are permanently removed after 30 days.</p>
+      <div className="flex items-start gap-3">
+        <DashboardBackButton />
+        <div>
+          <h2 className="display text-2xl text-paper">Trash</h2>
+          <p className="mt-1 text-sm text-muted">Deleted items are permanently removed after 30 days.</p>
+        </div>
+      </div>
       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {items.map(({ type, item: record }) => {
           const isEvent = type === 'event'
@@ -1264,11 +1268,13 @@ function AttendeesPage() {
 
   return (
     <div>
-      <DashboardBackButton />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="flex items-start gap-3">
+          <DashboardBackButton />
+          <div>
           <h2 className="display text-2xl text-paper">Attendees Roster</h2>
           <p className="mt-1 text-sm text-muted">Complete overview of registered guests and ticket holders across your events.</p>
+          </div>
         </div>
         <button
           type="button"
@@ -1571,11 +1577,13 @@ function RevenuePage() {
 
   return (
     <div>
-      <DashboardBackButton />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="flex items-start gap-3">
+          <DashboardBackButton />
+          <div>
           <h2 className="display text-2xl text-paper">Revenue & Financials</h2>
           <p className="mt-1 text-sm text-muted">Track ticket transactions, gross earnings, and event sales performance.</p>
+          </div>
         </div>
         <button
           type="button"
