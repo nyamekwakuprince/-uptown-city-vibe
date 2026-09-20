@@ -356,7 +356,7 @@ export function DashboardTrashPage() {
 
   return (
     <div>
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3">
         <DashboardBackButton />
         <div>
           <h2 className="display text-2xl text-paper">Trash</h2>
@@ -1269,7 +1269,7 @@ function AttendeesPage() {
   return (
     <div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
+        <div className="flex items-center gap-3">
           <DashboardBackButton />
           <div>
           <h2 className="display text-2xl text-paper">Attendees Roster</h2>
@@ -1578,7 +1578,7 @@ function RevenuePage() {
   return (
     <div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
+        <div className="flex items-center gap-3">
           <DashboardBackButton />
           <div>
           <h2 className="display text-2xl text-paper">Revenue & Financials</h2>
