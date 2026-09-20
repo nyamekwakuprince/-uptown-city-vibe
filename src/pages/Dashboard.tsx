@@ -358,11 +358,9 @@ export function DashboardTrashPage() {
     <div>
       <div className="flex items-center gap-3">
         <DashboardBackButton />
-        <div>
-          <h2 className="display text-2xl text-paper">Trash</h2>
-          <p className="mt-1 text-sm text-muted">Deleted items are permanently removed after 30 days.</p>
-        </div>
+        <h2 className="display text-2xl leading-none text-paper">Trash</h2>
       </div>
+      <p className="mt-1 text-sm text-muted">Deleted items are permanently removed after 30 days.</p>
       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {items.map(({ type, item: record }) => {
           const isEvent = type === 'event'
@@ -1272,10 +1270,10 @@ function AttendeesPage() {
         <div className="flex items-center gap-3">
           <DashboardBackButton />
           <div>
-          <h2 className="display text-2xl text-paper">Attendees Roster</h2>
-          <p className="mt-1 text-sm text-muted">Complete overview of registered guests and ticket holders across your events.</p>
+          <h2 className="display text-2xl leading-none text-paper">Attendees Roster</h2>
           </div>
         </div>
+        <p className="mt-1 text-sm text-muted">Complete overview of registered guests and ticket holders across your events.</p>
         <button
           type="button"
           onClick={exportCsv}
@@ -1581,10 +1579,10 @@ function RevenuePage() {
         <div className="flex items-center gap-3">
           <DashboardBackButton />
           <div>
-          <h2 className="display text-2xl text-paper">Revenue & Financials</h2>
-          <p className="mt-1 text-sm text-muted">Track ticket transactions, gross earnings, and event sales performance.</p>
+          <h2 className="display text-2xl leading-none text-paper">Revenue & Financials</h2>
           </div>
         </div>
+        <p className="mt-1 text-sm text-muted">Track ticket transactions, gross earnings, and event sales performance.</p>
         <button
           type="button"
           onClick={exportCsv}
