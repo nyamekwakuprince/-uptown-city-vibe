@@ -116,7 +116,7 @@ function renderReceiptCanvas(
   ctx.font = 'bold 36px "Manrope", sans-serif'
   ctx.textAlign = 'center'
   ctx.fillText(
-    (info.organizationName || 'UPTOWN CITY VIBE').toUpperCase(),
+    (info.organizationName || 'UPTOWN CITY VIBEZ').toUpperCase(),
     width / 2,
     cardY + 62
   )

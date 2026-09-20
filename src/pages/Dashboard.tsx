@@ -302,7 +302,7 @@ export function DashboardPhotosPage() {
 
 export function DashboardBackButton() {
   const navigate = useNavigate()
-  return <button type="button" aria-label="Go back" onClick={() => navigate(-1)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-black/15 text-xl text-paper hover:bg-black/5">←</button>
+  return <button type="button" aria-label="Go back" onClick={() => navigate(-1)} className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-black/15 text-xl text-paper hover:bg-black/5 md:inline-flex">←</button>
 }
 
 export function DashboardTrashPage() {
@@ -1274,16 +1274,6 @@ function AttendeesPage() {
           </div>
         </div>
         <p className="mt-1 text-sm text-muted">Complete overview of registered guests and ticket holders across your events.</p>
-        <button
-          type="button"
-          onClick={exportCsv}
-          className="inline-flex items-center justify-center gap-2 rounded-full border border-black/15 bg-surface px-4 py-2 text-sm font-medium text-paper transition hover:border-black/30 hover:bg-black/5"
-        >
-          <svg className="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-          </svg>
-          <span>Export CSV</span>
-        </button>
       </div>
 
       {actionSuccess && (
@@ -1468,6 +1458,12 @@ function AttendeesPage() {
           </div>
         )}
       </div>
+      <button type="button" onClick={exportCsv} className="mt-6 inline-flex items-center justify-center gap-2 rounded-full border border-black/15 bg-surface px-4 py-2 text-sm font-medium text-paper transition hover:border-black/30 hover:bg-black/5">
+        <svg className="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+        </svg>
+        <span>Export CSV</span>
+      </button>
     </div>
   )
 }
@@ -1583,16 +1579,6 @@ function RevenuePage() {
           </div>
         </div>
         <p className="mt-1 text-sm text-muted">Track ticket transactions, gross earnings, and event sales performance.</p>
-        <button
-          type="button"
-          onClick={exportCsv}
-          className="inline-flex items-center justify-center gap-2 rounded-full border border-black/15 bg-surface px-4 py-2 text-sm font-medium text-paper transition hover:border-black/30 hover:bg-black/5"
-        >
-          <svg className="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-          </svg>
-          <span>Export Orders CSV</span>
-        </button>
       </div>
 
       {/* KPI Stats Cards */}
@@ -1757,6 +1743,12 @@ function RevenuePage() {
           )}
         </div>
       </div>
+      <button type="button" onClick={exportCsv} className="mt-6 inline-flex items-center justify-center gap-2 rounded-full border border-black/15 bg-surface px-4 py-2 text-sm font-medium text-paper transition hover:border-black/30 hover:bg-black/5">
+        <svg className="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+        </svg>
+        <span>Export Orders CSV</span>
+      </button>
     </div>
   )
 }

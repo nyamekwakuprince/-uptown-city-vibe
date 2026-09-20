@@ -14,7 +14,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
-  const EMAIL_FROM = Deno.env.get('EMAIL_FROM_ADDRESS') ?? 'Uptown City Vibe <onboarding@resend.dev>'
+  const EMAIL_FROM = Deno.env.get('EMAIL_FROM_ADDRESS') ?? 'Uptown City Vibez <onboarding@resend.dev>'
 
   if (!RESEND_API_KEY) {
     console.error('RESEND_API_KEY not set')
@@ -53,19 +53,19 @@ Deno.serve(async (req: Request) => {
     const { data: member } = await supabase.from('members').select('*').eq('id', record_id).single()
     if (!member || !member.email) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: corsHeaders })
     to = member.email
-    subject = 'Thanks for applying to Uptown City Vibe'
+    subject = 'Thanks for applying to Uptown City Vibez'
     html = `<p>Hi ${escapeHtml(member.first_name)},</p><p>We've received your membership application. We'll notify you once it's confirmed.</p><p>Your reference code: <strong>${escapeHtml(member.membership_code)}</strong></p>`
   } else if (type === 'member_confirmed') {
     const { data: member } = await supabase.from('members').select('*').eq('id', record_id).single()
     if (!member || !member.email) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: corsHeaders })
     to = member.email
-    subject = "You're confirmed! Welcome to Uptown City Vibe"
+    subject = "You're confirmed! Welcome to Uptown City Vibez"
     html = `<p>Hi ${escapeHtml(member.first_name)},</p><p>Great news — your membership is confirmed!</p><p>Your membership code: <strong>${escapeHtml(member.membership_code)}</strong></p>`
   } else if (type === 'team_approved') {
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', record_id).single()
     if (!profile || !profile.email) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: corsHeaders })
     to = profile.email
-    subject = 'Your Uptown City Vibe dashboard access is confirmed'
+    subject = 'Your Uptown City Vibez dashboard access is confirmed'
     html = `<p>Hi ${escapeHtml(profile.full_name ?? '')},</p><p>An admin has confirmed your access — you can now sign in and use the dashboard.</p>`
   } else {
     return new Response(JSON.stringify({ error: 'Unknown type' }), { status: 400, headers: corsHeaders })

@@ -1,4 +1,4 @@
-import { Navigate, NavLink, Outlet } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const navItems = [
@@ -14,6 +14,9 @@ const navItems = [
 
 export default function DashboardLayout() {
   const { session, profile, loading } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const isOverview = location.pathname === '/dashboard'
 
   if (loading) {
     return <p className="mx-auto max-w-3xl px-5 py-16 text-muted">Loading dashboard…</p>
@@ -41,9 +44,16 @@ export default function DashboardLayout() {
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-12">
-      <p className="text-sm uppercase tracking-widest text-flame">Uptown City Vibe</p>
-      <h1 className="display text-3xl text-paper">Organizer Dashboard</h1>
-      <p className="mt-1 text-muted">Performance overview, event operations, community roster, and past event media.</p>
+      {!isOverview && (
+        <button type="button" onClick={() => navigate(-1)} className="mb-6 inline-flex items-center rounded-full border border-black/15 bg-surface px-4 py-2 text-sm text-paper hover:bg-black/5 md:hidden">← Back</button>
+      )}
+      {isOverview && (
+        <>
+          <p className="text-sm uppercase tracking-widest text-flame">Uptown City Vibez</p>
+          <h1 className="display text-3xl text-paper">Organizer Dashboard</h1>
+          <p className="mt-1 text-muted">Performance overview, event operations, community roster, and past event media.</p>
+        </>
+      )}
 
       <div className="mt-8 grid gap-6 md:grid-cols-[12rem_1fr]">
         <nav className="hidden gap-2 md:flex md:flex-col">

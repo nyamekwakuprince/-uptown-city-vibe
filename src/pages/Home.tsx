@@ -163,7 +163,7 @@ export default function Home() {
       <section className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-10 px-5 py-20 lg:flex-row lg:py-32">
         <div className="max-w-xl text-left">
           <h1 className="display text-5xl leading-tight text-paper sm:text-6xl lg:text-7xl">
-            {org?.name ?? 'Uptown City Vibe'} <span className="text-flame">#1</span> Events &amp; Experiences
+            {org?.name ?? 'Uptown City Vibez'} <span className="text-flame">#1</span> Events &amp; Experiences
           </h1>
           <p className="mt-6 text-lg text-muted">
             Discover memorable events, connect with your community, and create experiences people will talk about.
@@ -223,7 +223,7 @@ export default function Home() {
         <div className="mx-auto max-w-3xl px-5 py-16 text-center">
           <h2 className="display text-3xl text-paper">Join the community</h2>
           <p className="mx-auto mt-3 max-w-xl text-muted">
-            Become a member of {org?.name ?? 'Uptown City Vibe'} — stay in the loop and connect with the crew.
+            Become a member of {org?.name ?? 'Uptown City Vibez'} — stay in the loop and connect with the crew.
           </p>
           <Link to="/membership" className="mt-6 inline-block rounded-full bg-gold px-6 py-2.5 font-medium text-ink hover:brightness-95">
             Register as a member

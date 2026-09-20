@@ -51,7 +51,7 @@ export default function Membership() {
   return (
     <div className="mx-auto max-w-2xl px-5 py-16">
       <h1 className="display text-3xl text-paper">Become a member</h1>
-      <p className="mt-2 text-muted">Join the Uptown City Vibe community.</p>
+      <p className="mt-2 text-muted">Join the Uptown City Vibez community.</p>
 
       <div className="mt-8 rounded-2xl border border-black/10 bg-surface/50 p-6">
         {submitted ? (
