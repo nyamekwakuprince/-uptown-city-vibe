@@ -52,6 +52,8 @@ export default function EventDetail() {
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
     if (!event) return
+    const contactError = validateContactDetails(form, false)
+    if (contactError) { setError(contactError); return }
     if (!isRegistrationOpen(event, registrationCount)) {
       setError(event.capacity && registrationCount >= event.capacity ? 'This event is sold out.' : 'Registration for this event is currently closed.')
       return
@@ -89,6 +91,8 @@ export default function EventDetail() {
       setError('Not enough tickets left for this quantity.')
       return
     }
+    const contactError = validateContactDetails(form, true)
+    if (contactError) { setError(contactError); return }
     setSubmitting(false)
     navigate('/checkout/review', {
       state: {
@@ -111,11 +115,7 @@ export default function EventDetail() {
   if (loading) return <p className="mx-auto max-w-3xl px-5 py-16 text-muted">Loading…</p>
   if (!event) return <p className="mx-auto max-w-3xl px-5 py-16 text-muted">Event not found.</p>
 
-  const ticket = availableTicketTypes.find((t) => t.id === selectedTicket) ?? availableTicketTypes[0] ?? null
   const registrationOpen = isRegistrationOpen(event, registrationCount)
-  const ticketBaseAmount = ticket ? ticket.price * quantity : 0
-  const serviceFee = Math.round(ticketBaseAmount * 0.07 * 100) / 100
-  const paymentTotal = Math.round((ticketBaseAmount + serviceFee) * 100) / 100
 
   const now = Date.now()
   const eventEndTime = event.end_datetime ? new Date(event.end_datetime).getTime() : new Date(event.start_datetime).getTime()
@@ -192,22 +192,6 @@ export default function EventDetail() {
                   />
                 </div>
                 <Fields form={form} setForm={setForm} phoneRequired />
-                {ticket && (
-                  <div className="space-y-1 rounded-lg border border-black/10 bg-black/[0.02] px-4 py-3 text-sm">
-                    <div className="flex items-center justify-between gap-4 text-muted">
-                      <span>Ticket price</span>
-                      <span className="text-paper">{formatGHS(ticketBaseAmount)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-4 text-muted">
-                      <span>Service fee (7%)</span>
-                      <span className="text-paper">{formatGHS(serviceFee)}</span>
-                    </div>
-                    <div className="mt-2 flex items-center justify-between gap-4 border-t border-black/10 pt-2 font-semibold text-paper">
-                      <span>Total</span>
-                      <span>{formatGHS(paymentTotal)}</span>
-                    </div>
-                  </div>
-                )}
                 {error && <p className="text-sm text-flame">{error}</p>}
                 <button
                   disabled={submitting}
@@ -265,6 +249,19 @@ function isRegistrationOpen(event: EventRow, registrationCount: number) {
   return true
 }
 
+function validateContactDetails(form: { email: string; phone: string }, phoneRequired: boolean) {
+  const email = form.email.trim()
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+    return 'Enter a valid email address, such as name@example.com.'
+  }
+
+  const phoneDigits = form.phone.replace(/\D/g, '')
+  if (phoneRequired && (phoneDigits.length < 7 || phoneDigits.length > 15)) {
+    return 'Enter a valid phone number with 7 to 15 digits.'
+  }
+  return ''
+}
+
 function Fields({ form, setForm, phoneRequired = false }: { form: { name: string; email: string; phone: string; nickname: string; whatsapp_number: string; location: string }; setForm: (f: any) => void; phoneRequired?: boolean }) {
   return (
     <div className="grid gap-3">
@@ -280,6 +277,7 @@ function Fields({ form, setForm, phoneRequired = false }: { form: { name: string
           required
           type="email"
           placeholder="Email"
+          autoComplete="email"
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
           className="w-full rounded-lg border border-black/15 bg-ink px-3 py-3 text-base text-paper placeholder:text-muted"
@@ -288,6 +286,10 @@ function Fields({ form, setForm, phoneRequired = false }: { form: { name: string
           required={phoneRequired}
           type="tel"
           placeholder="Phone"
+          autoComplete="tel"
+          inputMode="tel"
+          pattern="[0-9+()\s-]{7,20}"
+          title="Enter a valid phone number"
           value={form.phone}
           onChange={(e) => setForm({ ...form, phone: e.target.value })}
           className="w-full rounded-lg border border-black/15 bg-ink px-3 py-3 text-base text-paper placeholder:text-muted"

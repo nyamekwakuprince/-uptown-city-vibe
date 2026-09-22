@@ -103,7 +103,7 @@ export default function CheckoutReview() {
           <div className="flex justify-between gap-4 text-muted"><span>Ticket type</span><span className="text-right text-paper">{checkout.ticket.name}</span></div>
           <div className="flex justify-between gap-4 text-muted"><span>Number of tickets</span><span className="text-paper">{checkout.quantity}</span></div>
           <div className="flex justify-between gap-4 text-muted"><span>Ticket price</span><span className="text-paper">{formatGHS(ticketBaseAmount)}</span></div>
-          <div className="flex justify-between gap-4 text-muted"><span>Service fee (7%)</span><span className="text-paper">{formatGHS(serviceFee)}</span></div>
+          <div className="flex justify-between gap-4 text-muted"><span>Service charge</span><span className="text-paper">{formatGHS(serviceFee)}</span></div>
           <div className="flex justify-between gap-4 border-t border-black/10 pt-3 font-semibold text-paper"><span>Total to pay</span><span>{formatGHS(paymentTotal)}</span></div>
         </div>
 
