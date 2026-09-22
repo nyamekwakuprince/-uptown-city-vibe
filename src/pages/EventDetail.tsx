@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { supabase, shortCode, formatGHS, formatDate, callFunction } from '../lib/supabase'
+import { supabase, shortCode, formatGHS, formatDate } from '../lib/supabase'
 import type { EventRow, TicketType } from '../lib/types'
 
 export default function EventDetail() {
@@ -89,54 +89,15 @@ export default function EventDetail() {
       setError('Not enough tickets left for this quantity.')
       return
     }
-    setSubmitting(true)
-    setError('')
-    const orderId = crypto.randomUUID()
-    const { error: insertError } = await supabase.from('orders').insert({
-      id: orderId,
-      event_id: event.id,
-      ticket_type_id: ticket.id,
-      buyer_full_name: form.name,
-      buyer_email: form.email,
-      buyer_phone: form.phone,
-      nickname: form.nickname || null,
-      whatsapp_number: form.whatsapp_number || null,
-      location: form.location || null,
-      quantity,
-      total_amount: ticket.price * quantity,
-      payment_status: 'pending',
+    setSubmitting(false)
+    navigate('/checkout/review', {
+      state: {
+        event: { id: event.id, title: event.title, start_datetime: event.start_datetime, venue_name: event.venue_name, venue_address: event.venue_address },
+        ticket: { id: ticket.id, name: ticket.name, price: ticket.price, admits_count: ticket.admits_count },
+        quantity,
+        form,
+      },
     })
-
-    if (insertError) {
-      console.error('Could not create order:', insertError)
-      setSubmitting(false)
-      setError(`Could not create order: ${insertError.message}`)
-      return
-    }
-
-    const ticketCodes = new Set<string>()
-    while (ticketCodes.size < quantity) ticketCodes.add(shortCode('TIX'))
-    const ticketRows = Array.from(ticketCodes, (ticketCode) => ({
-      id: crypto.randomUUID(),
-      order_id: orderId,
-      ticket_code: ticketCode,
-      max_admits: Math.max(ticket.admits_count || 1, 1),
-    }))
-    const { error: ticketInsertError } = await supabase.from('tickets').insert(ticketRows)
-    if (ticketInsertError) {
-      console.error('Could not create tickets:', ticketInsertError)
-      setSubmitting(false)
-      setError(`Could not create tickets: ${ticketInsertError.message}`)
-      return
-    }
-
-    try {
-      const { authorization_url } = await callFunction('initialize-payment', { order_id: orderId })
-      window.location.href = authorization_url
-    } catch (err) {
-      setSubmitting(false)
-      setError(err instanceof Error ? `Could not start payment: ${err.message}` : 'Could not start payment. Please try again.')
-    }
   }
 
   const availableTicketTypes = ticketTypes.filter((t) => isTicketOpen(t))
@@ -152,6 +113,9 @@ export default function EventDetail() {
 
   const ticket = availableTicketTypes.find((t) => t.id === selectedTicket) ?? availableTicketTypes[0] ?? null
   const registrationOpen = isRegistrationOpen(event, registrationCount)
+  const ticketBaseAmount = ticket ? ticket.price * quantity : 0
+  const serviceFee = Math.round(ticketBaseAmount * 0.07 * 100) / 100
+  const paymentTotal = Math.round((ticketBaseAmount + serviceFee) * 100) / 100
 
   const now = Date.now()
   const eventEndTime = event.end_datetime ? new Date(event.end_datetime).getTime() : new Date(event.start_datetime).getTime()
@@ -229,9 +193,20 @@ export default function EventDetail() {
                 </div>
                 <Fields form={form} setForm={setForm} phoneRequired />
                 {ticket && (
-                  <p className="text-sm text-muted">
-                    Total: <span className="text-paper">{formatGHS(ticket.price * quantity)}</span> — paid directly to {event.organizations?.name}
-                  </p>
+                  <div className="space-y-1 rounded-lg border border-black/10 bg-black/[0.02] px-4 py-3 text-sm">
+                    <div className="flex items-center justify-between gap-4 text-muted">
+                      <span>Ticket price</span>
+                      <span className="text-paper">{formatGHS(ticketBaseAmount)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 text-muted">
+                      <span>Service fee (7%)</span>
+                      <span className="text-paper">{formatGHS(serviceFee)}</span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-4 border-t border-black/10 pt-2 font-semibold text-paper">
+                      <span>Total</span>
+                      <span>{formatGHS(paymentTotal)}</span>
+                    </div>
+                  </div>
                 )}
                 {error && <p className="text-sm text-flame">{error}</p>}
                 <button

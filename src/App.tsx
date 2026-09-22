@@ -34,6 +34,7 @@ import {
 } from './pages/Dashboard'
 import Membership from './pages/Membership'
 import CheckoutVerify from './pages/CheckoutVerify'
+import CheckoutReview from './pages/CheckoutReview'
 import TeamConfirmation from './pages/TeamConfirmation'
 import Gallery from './pages/Gallery'
 import Footer from './components/Footer'
@@ -89,6 +90,7 @@ function AppShell() {
             <Route path="/past-events/:eventId" element={<Gallery />} />
             <Route path="/membership" element={<Membership />} />
             <Route path="/checkout/verify" element={<CheckoutVerify />} />
+            <Route path="/checkout/review" element={<CheckoutReview />} />
             <Route path="/login" element={<Login />} />
             <Route path="/join/:token" element={<JoinOrganizer />} />
             <Route path="/team-confirmation/:token" element={<TeamConfirmation />} />
