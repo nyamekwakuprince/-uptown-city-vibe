@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { Component, lazy, Suspense, type ErrorInfo, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import NavBar from './components/NavBar'
@@ -9,35 +9,35 @@ import AllEvents from './pages/AllEvents'
 import EventDetail from './pages/EventDetail'
 import Login from './pages/Login'
 import JoinOrganizer from './pages/JoinOrganizer'
-import {
-  DashboardAdminPage,
-  DashboardAdminTeamPage,
-  DashboardAdminPendingPage,
-  DashboardAdminInvitesPage,
-  DashboardEventPage,
-  DashboardEventEditPage,
-  DashboardEventsPage,
-  DashboardEventsListPage,
-  DashboardCheckInPage,
-  DashboardCheckInEventPage,
-  DashboardGalleryPage,
-  DashboardGalleryEventPage,
-  DashboardPhotosPage,
-  DashboardMembersPage,
-  DashboardNewEventPage,
-  DashboardOverviewPage,
-  DashboardPendingMembersPage,
-  DashboardActiveMembersPage,
-  DashboardAttendeesPage,
-  DashboardRevenuePage,
-  DashboardTrashPage,
-} from './pages/Dashboard'
 import Membership from './pages/Membership'
-import CheckoutVerify from './pages/CheckoutVerify'
 import CheckoutReview from './pages/CheckoutReview'
 import TeamConfirmation from './pages/TeamConfirmation'
 import Gallery from './pages/Gallery'
 import Footer from './components/Footer'
+
+const CheckoutVerify = lazy(() => import('./pages/CheckoutVerify'))
+const DashboardModule = () => import('./pages/Dashboard')
+const DashboardAdminPage = lazy(async () => ({ default: (await DashboardModule()).DashboardAdminPage }))
+const DashboardAdminTeamPage = lazy(async () => ({ default: (await DashboardModule()).DashboardAdminTeamPage }))
+const DashboardAdminPendingPage = lazy(async () => ({ default: (await DashboardModule()).DashboardAdminPendingPage }))
+const DashboardAdminInvitesPage = lazy(async () => ({ default: (await DashboardModule()).DashboardAdminInvitesPage }))
+const DashboardEventPage = lazy(async () => ({ default: (await DashboardModule()).DashboardEventPage }))
+const DashboardEventEditPage = lazy(async () => ({ default: (await DashboardModule()).DashboardEventEditPage }))
+const DashboardEventsPage = lazy(async () => ({ default: (await DashboardModule()).DashboardEventsPage }))
+const DashboardEventsListPage = lazy(async () => ({ default: (await DashboardModule()).DashboardEventsListPage }))
+const DashboardCheckInPage = lazy(async () => ({ default: (await DashboardModule()).DashboardCheckInPage }))
+const DashboardCheckInEventPage = lazy(async () => ({ default: (await DashboardModule()).DashboardCheckInEventPage }))
+const DashboardGalleryPage = lazy(async () => ({ default: (await DashboardModule()).DashboardGalleryPage }))
+const DashboardGalleryEventPage = lazy(async () => ({ default: (await DashboardModule()).DashboardGalleryEventPage }))
+const DashboardPhotosPage = lazy(async () => ({ default: (await DashboardModule()).DashboardPhotosPage }))
+const DashboardMembersPage = lazy(async () => ({ default: (await DashboardModule()).DashboardMembersPage }))
+const DashboardNewEventPage = lazy(async () => ({ default: (await DashboardModule()).DashboardNewEventPage }))
+const DashboardOverviewPage = lazy(async () => ({ default: (await DashboardModule()).DashboardOverviewPage }))
+const DashboardPendingMembersPage = lazy(async () => ({ default: (await DashboardModule()).DashboardPendingMembersPage }))
+const DashboardActiveMembersPage = lazy(async () => ({ default: (await DashboardModule()).DashboardActiveMembersPage }))
+const DashboardAttendeesPage = lazy(async () => ({ default: (await DashboardModule()).DashboardAttendeesPage }))
+const DashboardRevenuePage = lazy(async () => ({ default: (await DashboardModule()).DashboardRevenuePage }))
+const DashboardTrashPage = lazy(async () => ({ default: (await DashboardModule()).DashboardTrashPage }))
 
 type ErrorBoundaryState = { hasError: boolean }
 
@@ -82,7 +82,8 @@ function AppShell() {
     <div className="min-h-screen bg-ink">
       <NavBar />
       <ErrorBoundary>
-        <Routes>
+        <Suspense fallback={<main className="mx-auto max-w-3xl px-5 py-16 text-muted">Loading…</main>}>
+          <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/search" element={<SearchResults />} />
             <Route path="/all-events" element={<AllEvents />} />
@@ -119,7 +120,8 @@ function AppShell() {
               <Route path="admin/invites" element={<DashboardAdminInvitesPage />} />
               <Route path="trash" element={<DashboardTrashPage />} />
             </Route>
-        </Routes>
+          </Routes>
+        </Suspense>
       </ErrorBoundary>
       {!isDashboardRoute && <Footer />}
     </div>

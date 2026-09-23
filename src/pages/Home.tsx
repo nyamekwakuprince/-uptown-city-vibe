@@ -27,6 +27,8 @@ function HeroGallery({ images }: { images: GalleryImage[] }) {
                 key={`${image.id}-${imageIndex}`}
                 src={image.image_url}
                 alt=""
+                loading={imageIndex < 3 ? 'eager' : 'lazy'}
+                decoding="async"
                 className="mb-3 aspect-square w-full rounded-2xl object-cover shadow-md last:mb-0"
               />
             ))}
@@ -45,37 +47,33 @@ function EventCard({ event, href, photoCount, fallbackImage }: { event: EventWit
     >
       <div className="relative flex aspect-[4/3] items-center justify-center bg-surface-light">
         {event.banner_image_url || fallbackImage ? (
-          <img src={event.banner_image_url ?? fallbackImage} alt={`${event.title} flyer`} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+          <img src={event.banner_image_url ?? fallbackImage} alt={`${event.title} flyer`} loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
         ) : (
           <span className="display text-4xl text-muted">{event.title[0]}</span>
         )}
       </div>
       <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="display line-clamp-2 text-lg text-paper">{event.title}</h3>
-          <span className="flex max-w-[9rem] shrink-0 flex-col items-end leading-tight text-right">
-            {photoCount ? (
-              <>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted">Photos</span>
-                <span className="text-xl font-black text-flame">{photoCount}</span>
-              </>
-            ) : event.is_paid ? (
-              event.ticketTypes.length > 0 ? (
-                event.ticketTypes.map((ticket) => (
-                  <span key={ticket.id} className="text-sm font-semibold text-flame">
-                    {ticket.name}: {formatGHS(ticket.price)}
-                  </span>
-                ))
-              ) : (
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted">Tickets</span>
-              )
-            ) : (
-              <span className="text-sm font-bold uppercase tracking-wider text-flame">Free</span>
-            )}
-          </span>
-        </div>
+        <h3 className="display line-clamp-2 text-xl text-paper">{event.title}</h3>
         <p className="mt-1 text-sm text-muted">{formatDate(event.start_datetime)}</p>
         <p className="mt-1 truncate text-sm text-muted">{event.venue_name ?? 'Venue to be announced'}</p>
+        {photoCount ? (
+          <div className="mt-4 flex items-center justify-between rounded-lg bg-black/[0.04] px-3 py-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted">Photos</span>
+            <span className="text-lg font-black text-flame">{photoCount}</span>
+          </div>
+        ) : event.is_paid ? (
+          <div className="mt-4 rounded-lg border border-flame/20 bg-flame/[0.06] px-3 py-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-flame">Ticket prices</p>
+            {event.ticketTypes.length > 0 ? event.ticketTypes.map((ticket) => (
+              <div key={ticket.id} className="mt-1 flex items-baseline justify-between gap-3">
+                <span className="truncate text-sm text-paper">{ticket.name}</span>
+                <span className="shrink-0 text-lg font-black text-flame">{formatGHS(ticket.price)}</span>
+              </div>
+            )) : <p className="mt-1 text-sm text-muted">Tickets available soon</p>}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-lg bg-black/[0.04] px-3 py-2 text-sm font-bold uppercase tracking-wider text-flame">Free entry</div>
+        )}
       </div>
     </Link>
   )
@@ -93,19 +91,38 @@ export default function Home() {
 
   useEffect(() => {
     async function load() {
-      const { data: orgData } = await supabase.from('organizations').select('*').eq('slug', 'uptown-city-vibe').single()
+      const { data: orgData } = await supabase.from('organizations').select('id, name').eq('slug', 'uptown-city-vibe').single()
       setOrg(orgData as Organization)
       if (orgData) {
-        const { data: eventData } = await supabase
-          .from('events')
-          .select('*, organizations(name, slug, logo_url)')
-          .eq('organization_id', orgData.id)
-          .eq('status', 'published')
-          .is('deleted_at', null)
-          .order('start_datetime', { ascending: true })
-        const loadedEvents = (eventData as EventRow[]) ?? []
+        const [eventResult, pastResult, galleryResult] = await Promise.all([
+          supabase
+            .from('events')
+            .select('id, slug, title, start_datetime, end_datetime, venue_name, banner_image_url, is_paid, organization_id, status, deleted_at')
+            .eq('organization_id', orgData.id)
+            .eq('status', 'published')
+            .is('deleted_at', null)
+            .order('start_datetime', { ascending: true }),
+          supabase
+            .from('events')
+            .select('id, slug, title, start_datetime, end_datetime, venue_name, banner_image_url, is_paid, organization_id, status, deleted_at')
+            .eq('organization_id', orgData.id)
+            .is('deleted_at', null)
+            .lt('start_datetime', new Date().toISOString())
+            .order('start_datetime', { ascending: false }),
+          supabase
+            .from('gallery_images')
+            .select('id, event_id, image_url, created_at')
+            .eq('organization_id', orgData.id)
+            .is('deleted_at', null)
+            .eq('is_flyer', false)
+            .order('created_at', { ascending: false }),
+        ])
+
+        const loadedEvents = (eventResult.data as EventRow[]) ?? []
+        const loadedPastEvents = (pastResult.data as EventRow[]) ?? []
+        const galleryImages = (galleryResult.data as GalleryImage[]) ?? []
         const { data: ticketData } = loadedEvents.length > 0
-          ? await supabase.from('ticket_types').select('*').in('event_id', loadedEvents.map((event) => event.id))
+          ? await supabase.from('ticket_types').select('id, event_id, name, price, quantity_available, quantity_sold, admits_count, sales_start_at, sales_end_at').in('event_id', loadedEvents.map((event) => event.id))
           : { data: [] }
         const ticketsByEvent = new Map<string, TicketType[]>()
         ;((ticketData as TicketType[]) ?? []).forEach((ticket) => {
@@ -113,24 +130,8 @@ export default function Home() {
         })
         setEvents(loadedEvents.map((event) => ({ ...event, ticketTypes: ticketsByEvent.get(event.id) ?? [] })))
 
-        const { data: pastEventData } = await supabase
-          .from('events')
-          .select('*')
-          .eq('organization_id', orgData.id)
-          .is('deleted_at', null)
-          .lt('start_datetime', new Date().toISOString())
-          .order('start_datetime', { ascending: false })
-        const loadedPastEvents = (pastEventData as EventRow[]) ?? []
         setPastEvents(loadedPastEvents.map((event) => ({ ...event, ticketTypes: ticketsByEvent.get(event.id) ?? [] })))
-
-        const { data: galleryData } = await supabase
-          .from('gallery_images')
-          .select('*')
-          .eq('organization_id', orgData.id)
-          .is('deleted_at', null)
-          .eq('is_flyer', false)
-          .order('created_at', { ascending: false })
-        setGallery((galleryData as GalleryImage[]) ?? [])
+        setGallery(galleryImages)
       }
       setLoading(false)
     }
