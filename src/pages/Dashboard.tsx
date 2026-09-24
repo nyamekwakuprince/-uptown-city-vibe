@@ -1199,6 +1199,8 @@ function AttendeesPage() {
   const [feedback, setFeedback] = useState<{ title: string; message: string; isError?: boolean } | null>(null)
   const [selectedAttendee, setSelectedAttendee] = useState<UnifiedAttendee | null>(null)
   const [clearDialogOpen, setClearDialogOpen] = useState(false)
+  const [selectedClearDialogOpen, setSelectedClearDialogOpen] = useState(false)
+  const [selectedAttendeeIds, setSelectedAttendeeIds] = useState<Set<string>>(new Set())
   const [clearing, setClearing] = useState(false)
 
   async function loadAttendees() {
@@ -1324,6 +1326,35 @@ function AttendeesPage() {
     await loadAttendees()
   }
 
+  async function clearSelectedAttendees() {
+    const selected = attendees.filter((attendee) => selectedAttendeeIds.has(attendee.id))
+    if (selected.length === 0) return
+
+    setClearing(true)
+    const errors = await Promise.all(selected.map(async (attendee) => {
+      if (attendee.type === 'rsvp') {
+        return (await supabase.from('registrations').delete().eq('id', attendee.id.slice(4))).error
+      }
+
+      return (await supabase.from('tickets').update({ invalidated_at: new Date().toISOString() }).eq('id', attendee.id.slice(7))).error
+    }))
+    const error = errors.find(Boolean)
+    setClearing(false)
+
+    if (error) {
+      const message = error.message.includes('invalidated_at')
+        ? 'The database migration has not been applied yet. Run the attendee migration in Supabase, then try again.'
+        : error.message
+      setFeedback({ title: 'Could not clear selected attendees', message, isError: true })
+      return
+    }
+
+    setSelectedClearDialogOpen(false)
+    setSelectedAttendeeIds(new Set())
+    setFeedback({ title: 'Selected attendees cleared', message: `${selected.length} attendee${selected.length === 1 ? '' : 's'} removed.` })
+    await loadAttendees()
+  }
+
   function copyCode(code: string) {
     navigator.clipboard.writeText(code)
     setCopiedCode(code)
@@ -1346,6 +1377,26 @@ function AttendeesPage() {
     }
     return true
   })
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((attendee) => selectedAttendeeIds.has(attendee.id))
+
+  function toggleAttendeeSelection(id: string) {
+    setSelectedAttendeeIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleFilteredSelection() {
+    setSelectedAttendeeIds((current) => {
+      const next = new Set(current)
+      if (allFilteredSelected) filtered.forEach((attendee) => next.delete(attendee.id))
+      else filtered.forEach((attendee) => next.add(attendee.id))
+      return next
+    })
+  }
 
   function exportCsv() {
     const headers = ['Name', 'Email', 'Phone', 'Event', 'Date', 'Type', 'Amount', 'Ticket/RSVP Code', 'Status', 'Admissions', 'Checked In At', 'Registered At']
@@ -1467,6 +1518,15 @@ function AttendeesPage() {
             <table className="w-full text-left text-xs">
               <thead className="border-b border-black/10 bg-black/[0.02] text-muted uppercase tracking-wider">
                 <tr>
+                  <th className="w-10 py-3 px-4">
+                    <input
+                      type="checkbox"
+                      checked={allFilteredSelected}
+                      onChange={toggleFilteredSelection}
+                      aria-label="Select all visible attendees"
+                      className="h-4 w-4 accent-flame"
+                    />
+                  </th>
                   <th className="py-3 px-4 font-semibold">Guest</th>
                   <th className="py-3 px-4 font-semibold">Event</th>
                   <th className="py-3 px-4 font-semibold">Type / Price</th>
@@ -1477,7 +1537,16 @@ function AttendeesPage() {
               </thead>
               <tbody className="divide-y divide-black/5">
                 {filtered.map((a) => (
-                  <tr key={a.id} onClick={() => setSelectedAttendee(a)} className="cursor-pointer transition-colors hover:bg-black/[0.02]">
+                  <tr key={a.id} onClick={() => setSelectedAttendee(a)} className={`cursor-pointer transition-colors hover:bg-black/[0.02] ${selectedAttendeeIds.has(a.id) ? 'bg-flame/5' : ''}`}>
+                    <td className="py-3 px-4" onClick={(event) => event.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedAttendeeIds.has(a.id)}
+                        onChange={() => toggleAttendeeSelection(a.id)}
+                        aria-label={`Select ${a.name}`}
+                        className="h-4 w-4 accent-flame"
+                      />
+                    </td>
                     <td className="py-3 px-4">
                       <div className="font-semibold text-paper">{a.name}</div>
                       <div className="text-muted">{a.email || '—'}</div>
@@ -1571,8 +1640,25 @@ function AttendeesPage() {
           </svg>
           <span>Export CSV</span>
         </button>
+        <button
+          type="button"
+          onClick={() => setSelectedClearDialogOpen(true)}
+          disabled={selectedAttendeeIds.size === 0}
+          className="inline-flex items-center justify-center rounded-full border border-flame/40 px-4 py-2 text-sm font-medium text-flame hover:bg-flame/10 disabled:cursor-not-allowed disabled:border-black/10 disabled:text-muted disabled:hover:bg-transparent"
+        >
+          Clear selected ({selectedAttendeeIds.size})
+        </button>
         <button type="button" onClick={() => setClearDialogOpen(true)} className="inline-flex items-center justify-center rounded-full border border-flame/40 px-4 py-2 text-sm font-medium text-flame hover:bg-flame/10">Clear all attendees</button>
       </div>
+      <ConfirmDialog
+        open={selectedClearDialogOpen}
+        title="Clear selected attendees?"
+        message={`This removes ${selectedAttendeeIds.size} selected attendee${selectedAttendeeIds.size === 1 ? '' : 's'}. Paid ticket codes will be invalidated and registrations will be deleted.`}
+        confirmLabel="Clear selected"
+        loading={clearing}
+        onConfirm={clearSelectedAttendees}
+        onCancel={() => { if (!clearing) setSelectedClearDialogOpen(false) }}
+      />
       <ConfirmDialog
         open={clearDialogOpen}
         title="Clear all attendees?"
