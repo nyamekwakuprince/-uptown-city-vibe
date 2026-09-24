@@ -1602,6 +1602,8 @@ function RevenuePage() {
   const { events } = useOrganizationEvents(profile?.organization_id ?? null)
   const [orders, setOrders] = useState<(Order & { tickets: Ticket[] })[]>([])
   const [loading, setLoading] = useState(true)
+  const [clearDialogOpen, setClearDialogOpen] = useState(false)
+  const [clearing, setClearing] = useState(false)
   const [selectedEventId, setSelectedEventId] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all')
@@ -1630,6 +1632,16 @@ function RevenuePage() {
   useEffect(() => {
     loadRevenue()
   }, [profile?.organization_id, events])
+
+  async function clearTestData() {
+    if (!profile?.organization_id) return
+    setClearing(true)
+    const { error } = await supabase.rpc('clear_organization_test_data', { target_organization_id: profile.organization_id })
+    setClearing(false)
+    if (error) return
+    setClearDialogOpen(false)
+    await loadRevenue()
+  }
 
   const eventMap = new Map(events.map((e) => [e.id, e]))
 
@@ -1769,6 +1781,7 @@ function RevenuePage() {
             {(selectedEventId !== 'all' || searchQuery || statusFilter !== 'all') && (
               <button type="button" onClick={() => { setSelectedEventId('all'); setSearchQuery(''); setStatusFilter('all') }} className="text-xs font-medium text-flame hover:underline">Clear filters</button>
             )}
+            <button type="button" onClick={() => setClearDialogOpen(true)} className="text-xs font-medium text-flame hover:underline">Clear test data</button>
             <input
               type="text"
               placeholder="Search buyer, email, ticket code…"
@@ -1880,6 +1893,15 @@ function RevenuePage() {
         </svg>
         <span>Export Orders CSV</span>
       </button>
+      <ConfirmDialog
+        open={clearDialogOpen}
+        title="Clear all test data?"
+        message="This permanently deletes registrations, ticket records, and orders for every event in this organization. Use this only before real purchases begin."
+        confirmLabel="Clear test data"
+        loading={clearing}
+        onConfirm={clearTestData}
+        onCancel={() => { if (!clearing) setClearDialogOpen(false) }}
+      />
     </div>
   )
 }
