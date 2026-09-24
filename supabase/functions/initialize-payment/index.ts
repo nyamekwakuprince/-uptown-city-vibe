@@ -13,7 +13,11 @@ Deno.serve(async (req: Request) => {
   }
 
   const PAYSTACK_SECRET_KEY = Deno.env.get('PAYSTACK_SECRET_KEY')
-  const FRONTEND_URL = Deno.env.get('FRONTEND_URL') ?? 'http://localhost:5173'
+  const configuredFrontendUrl = Deno.env.get('FRONTEND_URL') ?? 'http://localhost:5173'
+  const requestOrigin = req.headers.get('origin')
+  const frontendUrl = requestOrigin && /^https?:\/\//.test(requestOrigin)
+    ? requestOrigin
+    : configuredFrontendUrl
 
   if (!PAYSTACK_SECRET_KEY) {
     return new Response(JSON.stringify({ error: 'Payments are not configured yet (missing PAYSTACK_SECRET_KEY).' }), { status: 500, headers: corsHeaders })
@@ -60,7 +64,7 @@ Deno.serve(async (req: Request) => {
       amount: amountInPesewas,
       currency: 'GHS',
       reference: order.id,
-      callback_url: `${FRONTEND_URL}/checkout/verify`,
+      callback_url: `${frontendUrl.replace(/\/$/, '')}/checkout/verify`,
       metadata: { order_id: order.id, event_id: order.event_id },
     }),
   })

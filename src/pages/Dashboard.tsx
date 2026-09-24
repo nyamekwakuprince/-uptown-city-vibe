@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Html5Qrcode } from 'html5-qrcode'
+import { QRCodeCanvas } from 'qrcode.react'
 import confetti from 'canvas-confetti'
 import { supabase, formatDate, formatGHS, callFunction, sendConfirmationEmail } from '../lib/supabase'
+import { generateAndDownloadReceipt } from '../lib/receipt'
 import { useAuth } from '../context/AuthContext'
 import ConfirmDialog from '../components/ConfirmDialog'
 import type { EventRow, TicketType, Registration, Order, Ticket, Member, GalleryImage } from '../lib/types'
@@ -1116,6 +1118,47 @@ type UnifiedAttendee = {
   rawRegistration?: Registration
 }
 
+function AttendeeDetail({ attendee, onClose }: { attendee: UnifiedAttendee; onClose: () => void }) {
+  const qrId = `attendee-detail-qr-${attendee.id}`
+
+  function downloadReceipt() {
+    const qrCanvas = document.getElementById(qrId) as HTMLCanvasElement | null
+    generateAndDownloadReceipt({
+      eventName: attendee.eventTitle,
+      eventDate: attendee.eventDate,
+      attendeeName: attendee.name,
+      code: attendee.code,
+      type: attendee.type === 'paid' ? 'ticket' : 'registration',
+      amount: attendee.amount,
+      quantity: attendee.quantity,
+    }, qrCanvas)
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-5" role="presentation" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-labelledby="attendee-detail-title" className="w-full max-w-md rounded-2xl border border-black/10 bg-surface p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-flame">Attendee details</p>
+            <h2 id="attendee-detail-title" className="display mt-1 text-2xl text-paper">{attendee.name}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close attendee details" className="rounded-full p-2 text-muted hover:bg-black/5 hover:text-paper">×</button>
+        </div>
+        <div className="mt-4 space-y-1 text-sm text-muted">
+          <p>{attendee.eventTitle}</p>
+          <p>{attendee.email || 'No email'}{attendee.phone ? ` · ${attendee.phone}` : ''}</p>
+        </div>
+        <div className="mt-5 flex flex-col items-center rounded-xl border border-black/10 bg-white p-4">
+          <QRCodeCanvas id={qrId} value={attendee.code} size={220} />
+          <code className="mt-3 font-mono text-lg font-bold tracking-wider text-flame">{attendee.code}</code>
+          <p className="mt-1 text-xs text-muted">{attendee.type === 'paid' ? `${attendee.checkInCount}/${attendee.maxAdmits} admitted` : attendee.status}</p>
+        </div>
+        <button type="button" onClick={downloadReceipt} className="mt-5 w-full rounded-full bg-flame px-5 py-2.5 text-sm font-medium text-ink hover:brightness-95">Download QR receipt</button>
+      </div>
+    </div>
+  )
+}
+
 function csvCell(value: unknown) {
   return `"${String(value ?? '').replace(/"/g, '""')}"`
 }
@@ -1130,7 +1173,10 @@ function AttendeesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'paid' | 'rsvp' | 'checked_in'>('all')
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
-  const [actionSuccess, setActionSuccess] = useState('')
+  const [feedback, setFeedback] = useState<{ title: string; message: string; isError?: boolean } | null>(null)
+  const [selectedAttendee, setSelectedAttendee] = useState<UnifiedAttendee | null>(null)
+  const [clearDialogOpen, setClearDialogOpen] = useState(false)
+  const [clearing, setClearing] = useState(false)
 
   async function loadAttendees() {
     if (!profile?.organization_id) return
@@ -1174,7 +1220,7 @@ function AttendeesPage() {
 
     ;((orders as (Order & { tickets: Ticket[] })[]) ?? []).forEach((o) => {
       const ev = eventMap.get(o.event_id)
-      o.tickets.forEach((ticket) => list.push({
+      o.tickets.filter((ticket) => !ticket.invalidated_at).forEach((ticket) => list.push({
           id: `ticket-${ticket.id}`,
           name: o.buyer_full_name,
           email: o.buyer_email,
@@ -1207,8 +1253,51 @@ function AttendeesPage() {
     const { error } = await supabase.from('registrations').update({ status: 'confirmed' }).eq('id', reg.id)
     if (error) return
     sendConfirmationEmail('registration', reg.id)
-    setActionSuccess(`${reg.attendee_full_name} confirmed`)
-    setTimeout(() => setActionSuccess(''), 2500)
+    setFeedback({ title: 'Registration confirmed', message: `${reg.attendee_full_name} is now confirmed.` })
+    await loadAttendees()
+  }
+
+  async function clearAllAttendees() {
+    if (!profile?.organization_id) return
+    setClearing(true)
+    let { error } = await supabase.rpc('clear_organization_attendees', { target_organization_id: profile.organization_id })
+    if (error?.message.toLowerCase().includes('could not find the function')) {
+      const eventIds = events.map((event) => event.id)
+      const { data: orders, error: ordersError } = await supabase
+        .from('orders')
+        .select('id')
+        .in('event_id', eventIds)
+
+      if (ordersError) {
+        error = ordersError
+      } else {
+        const orderIds = (orders ?? []).map((order) => order.id)
+        if (orderIds.length > 0) {
+          const { error: ticketsError } = await supabase
+            .from('tickets')
+            .update({ invalidated_at: new Date().toISOString() })
+            .in('order_id', orderIds)
+          error = ticketsError
+        }
+        if (!error) {
+          const { error: registrationsError } = await supabase
+            .from('registrations')
+            .delete()
+            .in('event_id', eventIds)
+          error = registrationsError
+        }
+      }
+    }
+    setClearing(false)
+    if (error) {
+      const message = error.message.includes("invalidated_at")
+        ? 'The database migration has not been applied yet. Run the attendee migration in Supabase, then try again.'
+        : error.message
+      setFeedback({ title: 'Could not clear attendees', message, isError: true })
+      return
+    }
+    setClearDialogOpen(false)
+    setFeedback({ title: 'Attendees cleared', message: 'All attendees were removed and paid ticket codes are now invalid.' })
     await loadAttendees()
   }
 
@@ -1266,21 +1355,15 @@ function AttendeesPage() {
 
   return (
     <div>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+      <div className="mb-6 flex items-start justify-between gap-5">
+        <div className="flex items-start gap-3">
           <DashboardBackButton />
           <div>
-          <h2 className="display text-2xl leading-none text-paper">Attendees Roster</h2>
+            <h2 className="display text-2xl leading-none text-paper">Attendees Roster</h2>
+            <p className="mt-2 max-w-2xl text-sm text-muted">Complete overview of registered guests and ticket holders across your events.</p>
           </div>
         </div>
-        <p className="mt-1 text-sm text-muted">Complete overview of registered guests and ticket holders across your events.</p>
       </div>
-
-      {actionSuccess && (
-        <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-700">
-          ✓ {actionSuccess}
-        </div>
-      )}
 
       {/* KPI Stats Bar */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -1371,14 +1454,14 @@ function AttendeesPage() {
               </thead>
               <tbody className="divide-y divide-black/5">
                 {filtered.map((a) => (
-                  <tr key={a.id} className="transition-colors hover:bg-black/[0.02]">
+                  <tr key={a.id} onClick={() => setSelectedAttendee(a)} className="cursor-pointer transition-colors hover:bg-black/[0.02]">
                     <td className="py-3 px-4">
                       <div className="font-semibold text-paper">{a.name}</div>
                       <div className="text-muted">{a.email || '—'}</div>
                       {a.phone && <div className="text-[11px] text-muted">{a.phone}</div>}
                     </td>
                     <td className="py-3 px-4">
-                      <button type="button" onClick={() => navigate(`/dashboard/events/${a.eventId}?tab=attendees`)} className="text-left font-medium text-paper line-clamp-1 hover:text-flame hover:underline">{a.eventTitle}</button>
+                      <button type="button" onClick={(event) => { event.stopPropagation(); navigate(`/dashboard/events/${a.eventId}?tab=attendees`) }} className="text-left font-medium text-paper line-clamp-1 hover:text-flame hover:underline">{a.eventTitle}</button>
                       {a.eventDate && <div className="text-muted">{formatDate(a.eventDate)}</div>}
                     </td>
                     <td className="py-3 px-4">
@@ -1404,7 +1487,7 @@ function AttendeesPage() {
                         </code>
                         <button
                           type="button"
-                          onClick={() => copyCode(a.code)}
+                          onClick={(event) => { event.stopPropagation(); copyCode(a.code) }}
                           title="Copy ticket code"
                           className="rounded p-1 text-muted hover:bg-black/5 hover:text-paper"
                         >
@@ -1430,7 +1513,7 @@ function AttendeesPage() {
                         {a.status === 'pending' && a.rawRegistration && (
                           <button
                             type="button"
-                            onClick={() => confirmRegistration(a.rawRegistration!)}
+                            onClick={(event) => { event.stopPropagation(); confirmRegistration(a.rawRegistration!) }}
                             className="rounded-full border border-flame/30 px-2 py-0.5 text-[10px] font-semibold text-flame hover:bg-flame/10"
                           >
                             Confirm
@@ -1458,12 +1541,34 @@ function AttendeesPage() {
           </div>
         )}
       </div>
-      <button type="button" onClick={exportCsv} className="mt-6 inline-flex items-center justify-center gap-2 rounded-full border border-black/15 bg-surface px-4 py-2 text-sm font-medium text-paper transition hover:border-black/30 hover:bg-black/5">
-        <svg className="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-        </svg>
-        <span>Export CSV</span>
-      </button>
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <button type="button" onClick={exportCsv} className="inline-flex items-center justify-center gap-2 rounded-full border border-black/15 bg-surface px-4 py-2 text-sm font-medium text-paper transition hover:border-black/30 hover:bg-black/5">
+          <svg className="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+          </svg>
+          <span>Export CSV</span>
+        </button>
+        <button type="button" onClick={() => setClearDialogOpen(true)} className="inline-flex items-center justify-center rounded-full border border-flame/40 px-4 py-2 text-sm font-medium text-flame hover:bg-flame/10">Clear all attendees</button>
+      </div>
+      <ConfirmDialog
+        open={clearDialogOpen}
+        title="Clear all attendees?"
+        message="This removes all registrations from the database and permanently invalidates every paid ticket code for your events. Orders and payment history will remain."
+        confirmLabel="Clear attendees"
+        loading={clearing}
+        onConfirm={clearAllAttendees}
+        onCancel={() => { if (!clearing) setClearDialogOpen(false) }}
+      />
+      <ConfirmDialog
+        open={feedback !== null}
+        title={feedback?.title ?? ''}
+        message={feedback?.message ?? ''}
+        confirmLabel="Close"
+        confirmClassName={feedback?.isError ? 'bg-flame text-ink' : 'bg-emerald-600 text-white'}
+        onConfirm={() => setFeedback(null)}
+        onCancel={() => setFeedback(null)}
+      />
+      {selectedAttendee && <AttendeeDetail attendee={selectedAttendee} onClose={() => setSelectedAttendee(null)} />}
     </div>
   )
 }
@@ -2231,7 +2336,10 @@ function AttendeesPanel({ event }: { event: EventRow }) {
     async function load() {
       if (event.is_paid) {
         const { data } = await supabase.from('orders').select('*, tickets(*)').eq('event_id', event.id).order('created_at', { ascending: false })
-        setOrders((data as (Order & { tickets: Ticket[] })[]) ?? [])
+        setOrders(((data as (Order & { tickets: Ticket[] })[]) ?? []).map((order) => ({
+          ...order,
+          tickets: order.tickets.filter((ticket) => !ticket.invalidated_at),
+        })))
       } else {
         const { data } = await supabase.from('registrations').select('*').eq('event_id', event.id).order('created_at', { ascending: false })
         setRegs((data as Registration[]) ?? [])
@@ -2339,7 +2447,7 @@ function CheckInPanel({ event }: { event: EventRow }) {
       setPendingCheckIn(null)
       const normalizedCode = rawCode.trim().toUpperCase()
       const { data: row } = event.is_paid
-        ? await supabase.from('tickets').select('*, orders!inner(buyer_full_name, buyer_phone, event_id, ticket_types(name))').eq('ticket_code', normalizedCode).eq('orders.event_id', event.id).maybeSingle()
+        ? await supabase.from('tickets').select('*, orders!inner(buyer_full_name, buyer_phone, event_id, ticket_types(name))').eq('ticket_code', normalizedCode).is('invalidated_at', null).eq('orders.event_id', event.id).maybeSingle()
         : await supabase.from('registrations').select('*').eq('event_id', event.id).eq('registration_code', normalizedCode).eq('status', 'confirmed').maybeSingle()
 
       if (!row) {

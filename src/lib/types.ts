@@ -89,6 +89,7 @@ export type Ticket = {
   max_admits: number
   check_in_count: number
   checked_in_at: string | null
+  invalidated_at?: string | null
   created_at?: string
 }
 

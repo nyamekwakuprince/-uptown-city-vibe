@@ -53,7 +53,7 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ status: tx.status }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
-  if (tx.amount !== expectedAmount || tx.currency !== 'GHS') {
+  if (Number(tx.amount) !== expectedAmount || String(tx.currency).toUpperCase() !== 'GHS') {
     return new Response(JSON.stringify({ status: 'mismatch' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
