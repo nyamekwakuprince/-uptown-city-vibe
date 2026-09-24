@@ -1013,7 +1013,11 @@ function Overview({ organizationId, events }: { organizationId: string; events: 
 
       if (eventIds.length > 0) {
         const { count: regCount } = await supabase.from('registrations').select('*', { count: 'exact', head: true }).in('event_id', eventIds)
-        const { data: orders } = await supabase.from('orders').select('quantity, total_amount, payment_status, buyer_full_name, created_at').in('event_id', eventIds)
+        const { data: orders } = await supabase
+          .from('orders')
+          .select('quantity, total_amount, payment_status, buyer_full_name, created_at, tickets!inner(invalidated_at)')
+          .in('event_id', eventIds)
+          .is('tickets.invalidated_at', null)
         attendees = (regCount ?? 0) + (orders?.reduce((sum, o) => sum + o.quantity, 0) ?? 0)
         revenue = orders?.filter((o) => o.payment_status === 'paid').reduce((sum, o) => sum + Number(o.total_amount), 0) ?? 0
 
