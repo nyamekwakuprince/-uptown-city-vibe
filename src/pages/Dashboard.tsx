@@ -1198,7 +1198,6 @@ function AttendeesPage() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ title: string; message: string; isError?: boolean } | null>(null)
   const [selectedAttendee, setSelectedAttendee] = useState<UnifiedAttendee | null>(null)
-  const [clearDialogOpen, setClearDialogOpen] = useState(false)
   const [selectedClearDialogOpen, setSelectedClearDialogOpen] = useState(false)
   const [selectedAttendeeIds, setSelectedAttendeeIds] = useState<Set<string>>(new Set())
   const [clearing, setClearing] = useState(false)
@@ -1279,50 +1278,6 @@ function AttendeesPage() {
     if (error) return
     sendConfirmationEmail('registration', reg.id)
     setFeedback({ title: 'Registration confirmed', message: `${reg.attendee_full_name} is now confirmed.` })
-    await loadAttendees()
-  }
-
-  async function clearAllAttendees() {
-    if (!profile?.organization_id) return
-    setClearing(true)
-    let { error } = await supabase.rpc('clear_organization_attendees', { target_organization_id: profile.organization_id })
-    if (error?.message.toLowerCase().includes('could not find the function')) {
-      const eventIds = events.map((event) => event.id)
-      const { data: orders, error: ordersError } = await supabase
-        .from('orders')
-        .select('id')
-        .in('event_id', eventIds)
-
-      if (ordersError) {
-        error = ordersError
-      } else {
-        const orderIds = (orders ?? []).map((order) => order.id)
-        if (orderIds.length > 0) {
-          const { error: ticketsError } = await supabase
-            .from('tickets')
-            .update({ invalidated_at: new Date().toISOString() })
-            .in('order_id', orderIds)
-          error = ticketsError
-        }
-        if (!error) {
-          const { error: registrationsError } = await supabase
-            .from('registrations')
-            .delete()
-            .in('event_id', eventIds)
-          error = registrationsError
-        }
-      }
-    }
-    setClearing(false)
-    if (error) {
-      const message = error.message.includes("invalidated_at")
-        ? 'The database migration has not been applied yet. Run the attendee migration in Supabase, then try again.'
-        : error.message
-      setFeedback({ title: 'Could not clear attendees', message, isError: true })
-      return
-    }
-    setClearDialogOpen(false)
-    setFeedback({ title: 'Attendees cleared', message: 'All attendees were removed and paid ticket codes are now invalid.' })
     await loadAttendees()
   }
 
@@ -1648,7 +1603,6 @@ function AttendeesPage() {
         >
           Clear selected ({selectedAttendeeIds.size})
         </button>
-        <button type="button" onClick={() => setClearDialogOpen(true)} className="inline-flex items-center justify-center rounded-full border border-flame/40 px-4 py-2 text-sm font-medium text-flame hover:bg-flame/10">Clear all attendees</button>
       </div>
       <ConfirmDialog
         open={selectedClearDialogOpen}
@@ -1658,15 +1612,6 @@ function AttendeesPage() {
         loading={clearing}
         onConfirm={clearSelectedAttendees}
         onCancel={() => { if (!clearing) setSelectedClearDialogOpen(false) }}
-      />
-      <ConfirmDialog
-        open={clearDialogOpen}
-        title="Clear all attendees?"
-        message="This removes all registrations from the database and permanently invalidates every paid ticket code for your events. Orders and payment history will remain."
-        confirmLabel="Clear attendees"
-        loading={clearing}
-        onConfirm={clearAllAttendees}
-        onCancel={() => { if (!clearing) setClearDialogOpen(false) }}
       />
       <ConfirmDialog
         open={feedback !== null}
