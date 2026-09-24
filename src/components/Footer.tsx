@@ -18,7 +18,7 @@ export default function Footer() {
 
         <div className="grid gap-10 py-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <Link to="/" className="text-xl font-bold">Uptown City Vibez</Link>
+            <Link to="/" className="text-xl font-bold">Uptown Vibez City</Link>
             <p className="mt-3 text-sm leading-relaxed text-white/60">Music, culture, community, and memorable experiences.</p>
           </div>
           <div>
@@ -47,7 +47,7 @@ export default function Footer() {
         </div>
 
         <div className="flex flex-col gap-3 border-t border-white/15 pt-5 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
-          <span>© {new Date().getFullYear()} Uptown City Vibez. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} Uptown Vibez City. All rights reserved.</span>
           <span>Community first. Always.</span>
         </div>
       </div>

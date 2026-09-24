@@ -54,7 +54,7 @@ Deno.serve(async (req: Request) => {
 
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
   if (RESEND_API_KEY) {
-    const EMAIL_FROM = Deno.env.get('EMAIL_FROM_ADDRESS') ?? 'Uptown City Vibez <onboarding@resend.dev>'
+    const EMAIL_FROM = Deno.env.get('EMAIL_FROM_ADDRESS') ?? 'Uptown Vibez City <onboarding@resend.dev>'
     const link = `${FRONTEND_URL}/team-confirmation/${token}`
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -62,8 +62,8 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         from: EMAIL_FROM,
         to: email,
-        subject: "You've been added to Uptown City Vibez's team",
-        html: `<p>Hi ${full_name ?? ''},</p><p>An admin has set up a dashboard account for you at Uptown City Vibez, using this email and a password they'll share with you separately.</p><p>Please confirm whether you'd like to accept this:</p><p><a href="${link}">Review and respond</a></p>`,
+        subject: "You've been added to Uptown Vibez City's team",
+        html: `<p>Hi ${full_name ?? ''},</p><p>An admin has set up a dashboard account for you at Uptown Vibez City, using this email and a password they'll share with you separately.</p><p>Please confirm whether you'd like to accept this:</p><p><a href="${link}">Review and respond</a></p>`,
       }),
     }).catch(() => {})
   }

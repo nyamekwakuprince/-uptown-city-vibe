@@ -34,7 +34,7 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: 'No WhatsApp number on file for this member.' }), { status: 404, headers: corsHeaders })
   }
 
-  const body = `Hi ${member.first_name}, you're confirmed as a member of Uptown City Vibez! Your membership code is ${member.membership_code}.`
+  const body = `Hi ${member.first_name}, you're confirmed as a member of Uptown Vibez City! Your membership code is ${member.membership_code}.`
 
   const params = new URLSearchParams({
     From: FROM,

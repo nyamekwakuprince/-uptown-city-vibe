@@ -72,8 +72,8 @@ export default function NavBar() {
         )}
 
         <Link to="/" className={`${isDashboardRoute ? 'order-2' : ''} flex min-w-0 items-center gap-2.5 text-paper`}>
-          <img src="/uptown-city-vibez-logo.png" alt="Uptown City Vibez logo" className="h-9 w-9 shrink-0 object-contain" />
-          <span className="display hidden truncate text-base font-semibold tracking-tight text-paper sm:inline sm:text-xl">Uptown City Vibez</span>
+          <img src="/uptown-city-vibez-logo.png" alt="Uptown Vibez City logo" className="h-9 w-9 shrink-0 object-contain" />
+          <span className="display hidden truncate text-base font-semibold tracking-tight text-paper sm:inline sm:text-xl">Uptown Vibez City</span>
         </Link>
 
         <div className={`${isDashboardRoute ? 'order-3' : ''} flex items-center gap-3 sm:gap-4`}>

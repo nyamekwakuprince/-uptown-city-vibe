@@ -1,6 +1,6 @@
-# Uptown City Vibez — Event Hub
+# Uptown Vibez City — Event Hub
 
-Solely Uptown City Vibez's event registration, ticketing, membership, and gallery website. Built on React + Vite + Supabase — no custom backend server, no local file database. Supabase provides Postgres, Auth, Storage, and (via Edge Functions) the payment/email logic.
+Solely Uptown Vibez City's event registration, ticketing, membership, and gallery website. Built on React + Vite + Supabase — no custom backend server, no local file database. Supabase provides Postgres, Auth, Storage, and (via Edge Functions) the payment/email logic.
 
 ## Local development
 ```

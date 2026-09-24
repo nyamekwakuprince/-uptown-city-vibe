@@ -49,7 +49,7 @@ export default function DashboardLayout() {
       )}
       {isOverview && (
         <>
-          <p className="text-sm uppercase tracking-widest text-flame">Uptown City Vibez</p>
+          <p className="text-sm uppercase tracking-widest text-flame">Uptown Vibez City</p>
           <h1 className="display text-3xl text-paper">Organizer Dashboard</h1>
           <p className="mt-1 text-muted">Performance overview, event operations, community roster, and past event media.</p>
         </>

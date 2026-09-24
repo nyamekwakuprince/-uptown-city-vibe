@@ -36,7 +36,7 @@ export default function TeamConfirmation() {
       ) : (
         <>
           <p className="text-sm uppercase tracking-widest text-flame">Team access</p>
-          <h1 className="display mt-2 text-3xl text-paper">You’ve been added to Uptown City Vibez’s team</h1>
+          <h1 className="display mt-2 text-3xl text-paper">You’ve been added to Uptown Vibez City’s team</h1>
           <p className="mt-3 text-muted">Do you want to accept this team invitation?</p>
           {error && <p className="mt-4 text-sm text-flame">{error}</p>}
           <div className="mt-8 flex justify-center gap-3">
