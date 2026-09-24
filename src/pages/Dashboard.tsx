@@ -990,6 +990,17 @@ function Overview({ organizationId, events }: { organizationId: string; events: 
   const navigate = useNavigate()
   const [stats, setStats] = useState({ upcoming: 0, attendees: 0, revenue: 0, members: 0 })
   const [recent, setRecent] = useState<{ label: string; at: string }[]>([])
+  const [clearDialogOpen, setClearDialogOpen] = useState(false)
+  const [clearing, setClearing] = useState(false)
+
+  async function clearAttendeeActivity() {
+    setClearing(true)
+    const { error } = await supabase.rpc('clear_organization_attendees', { target_organization_id: organizationId })
+    setClearing(false)
+    if (error) return
+    setClearDialogOpen(false)
+    setRecent([])
+  }
 
   useEffect(() => {
     async function load() {
@@ -1071,7 +1082,10 @@ function Overview({ organizationId, events }: { organizationId: string; events: 
       <div className="mt-10">
         <div className="flex items-center justify-between">
           <h3 className="display text-xl text-paper">Recent activity</h3>
-          <span className="text-xs font-medium text-muted">Latest registrations & ticket orders</span>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => setClearDialogOpen(true)} className="text-xs font-medium text-flame hover:underline">Clear attendee activity</button>
+            <span className="text-xs font-medium text-muted">Latest registrations & ticket orders</span>
+          </div>
         </div>
         <div className="mt-4 space-y-2.5">
           {recent.map((item, i) => (
@@ -1094,6 +1108,15 @@ function Overview({ organizationId, events }: { organizationId: string; events: 
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={clearDialogOpen}
+        title="Clear attendee activity?"
+        message="This removes registrations and invalidates paid ticket codes. Orders and payment history will remain." 
+        confirmLabel="Clear activity"
+        loading={clearing}
+        onConfirm={clearAttendeeActivity}
+        onCancel={() => { if (!clearing) setClearDialogOpen(false) }}
+      />
     </div>
   )
 }
@@ -1743,6 +1766,9 @@ function RevenuePage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="display text-lg text-paper">Recent Transactions</h3>
           <div className="flex flex-wrap items-center gap-2">
+            {(selectedEventId !== 'all' || searchQuery || statusFilter !== 'all') && (
+              <button type="button" onClick={() => { setSelectedEventId('all'); setSearchQuery(''); setStatusFilter('all') }} className="text-xs font-medium text-flame hover:underline">Clear filters</button>
+            )}
             <input
               type="text"
               placeholder="Search buyer, email, ticket code…"
