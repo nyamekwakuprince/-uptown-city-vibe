@@ -166,7 +166,7 @@ export default function EventDetail() {
             ) : availableTicketTypes.length === 0 ? (
               <div className="space-y-2">
                 <p className="text-sm text-muted">Ticket sales are closed for this event.</p>
-                <p className="text-sm text-flame">{event.capacity && registrationCount >= event.capacity ? 'This event is already sold out.' : 'Check back when the next ticket window opens.'}</p>
+                <p className="text-sm text-flame">{ticketUnavailableMessage(ticketTypes)}</p>
               </div>
             ) : (
               <>
@@ -231,6 +231,25 @@ export default function EventDetail() {
       </div>
     </div>
   )
+}
+
+function ticketUnavailableMessage(tickets: TicketType[]) {
+  if (tickets.length === 0) return 'No ticket types have been added for this event yet.'
+
+  const now = Date.now()
+  const inStock = tickets.filter((ticket) => ticket.quantity_sold < ticket.quantity_available)
+  if (inStock.length === 0) return 'All tickets have sold out.'
+
+  const upcomingStart = inStock
+    .flatMap((ticket) => ticket.sales_start_at && new Date(ticket.sales_start_at).getTime() > now ? [ticket.sales_start_at] : [])
+    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0]
+  if (upcomingStart) return `Ticket sales open ${formatDate(upcomingStart)}.`
+
+  if (inStock.every((ticket) => ticket.sales_end_at && new Date(ticket.sales_end_at).getTime() < now)) {
+    return 'Ticket sales have ended.'
+  }
+
+  return 'No tickets are currently available.'
 }
 
 function isTicketOpen(ticket: TicketType) {

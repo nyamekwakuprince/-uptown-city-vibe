@@ -2157,6 +2157,9 @@ function EditEventPanel({ event, onChange }: { event: EventRow; onChange: () => 
 function TicketTypesPanel({ event, onChange }: { event: EventRow; onChange: () => void }) {
   const [types, setTypes] = useState<TicketType[]>([])
   const [form, setForm] = useState({ name: '', price: '', quantity_available: '', admits_count: '1' })
+  const [editingWindowId, setEditingWindowId] = useState<string | null>(null)
+  const [windowForm, setWindowForm] = useState({ sales_start_at: '', sales_end_at: '' })
+  const [savingWindow, setSavingWindow] = useState(false)
   const [editingPriceId, setEditingPriceId] = useState<string | null>(null)
   const [editingPrice, setEditingPrice] = useState('')
   const [savingPrice, setSavingPrice] = useState(false)
@@ -2171,6 +2174,41 @@ function TicketTypesPanel({ event, onChange }: { event: EventRow; onChange: () =
     setTypes((data as TicketType[]) ?? [])
   }
   useEffect(() => { load() }, [event.id])
+
+  function startEditingWindow(ticket: TicketType) {
+    setEditingWindowId(ticket.id)
+    setWindowForm({
+      sales_start_at: ticket.sales_start_at ? toLocalInput(ticket.sales_start_at) : '',
+      sales_end_at: ticket.sales_end_at ? toLocalInput(ticket.sales_end_at) : '',
+    })
+    setError('')
+  }
+
+  async function saveWindow(ticketId: string) {
+    const start = windowForm.sales_start_at ? new Date(windowForm.sales_start_at) : null
+    const end = windowForm.sales_end_at ? new Date(windowForm.sales_end_at) : null
+    if (start && end && start.getTime() >= end.getTime()) {
+      setError('The sales end time must be after the sales start time.')
+      return
+    }
+    setSavingWindow(true)
+    setError('')
+    try {
+      const { error } = await supabase.from('ticket_types').update({
+        sales_start_at: start?.toISOString() ?? null,
+        sales_end_at: end?.toISOString() ?? null,
+      }).eq('id', ticketId).eq('event_id', event.id)
+      if (error) {
+        setError(error.message)
+        return
+      }
+      setEditingWindowId(null)
+      await load()
+      await onChange()
+    } finally {
+      setSavingWindow(false)
+    }
+  }
 
   function startEditingPrice(ticket: TicketType) {
     setEditingPriceId(ticket.id)
@@ -2245,31 +2283,70 @@ function TicketTypesPanel({ event, onChange }: { event: EventRow; onChange: () =
     <div>
       <div className="mb-4 space-y-2">
         {types.map((t) => (
-          <div key={t.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-ink px-3 py-2 text-sm">
-            <span className="text-paper">{t.name}</span>
-            <div className="flex items-center gap-2 text-muted">
-              {editingPriceId === t.id ? (
-                <>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={editingPrice}
-                    onChange={(e) => setEditingPrice(e.target.value)}
-                    className="w-28 rounded-md border border-black/15 bg-surface px-2 py-1 text-paper"
-                    aria-label={`Price for ${t.name}`}
-                  />
-                  <button type="button" disabled={savingPrice} onClick={() => savePrice(t.id)} className="rounded-md bg-gold px-2 py-1 text-xs font-medium text-ink disabled:opacity-60">{savingPrice ? 'Saving…' : 'Save'}</button>
-                  <button type="button" disabled={savingPrice} onClick={() => setEditingPriceId(null)} className="text-xs text-muted hover:text-paper">Cancel</button>
-                </>
-              ) : (
-                <>
-                  <span>{formatGHS(t.price)} · admits {t.admits_count ?? 1} · {t.quantity_sold}/{t.quantity_available} sold</span>
-                  <button type="button" onClick={() => startEditingPrice(t)} className="rounded-md border border-black/15 px-2 py-1 text-xs text-paper hover:bg-black/5">Edit price</button>
-                  <button type="button" onClick={() => setDeletingTypeId(t.id)} className="rounded-md border border-flame/30 px-2 py-1 text-xs text-flame hover:bg-flame/10">Delete</button>
-                </>
-              )}
+          <div key={t.id}>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-ink px-3 py-2 text-sm">
+              <div>
+                <p className="text-paper">{t.name}</p>
+                <p className="mt-1 text-xs text-muted">
+                  Sales {t.sales_start_at ? `open ${formatDate(t.sales_start_at)}` : 'open immediately'}
+                  {' · '}
+                  {t.sales_end_at ? `close ${formatDate(t.sales_end_at)}` : 'no end time'}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-muted">
+                {editingPriceId === t.id ? (
+                  <>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={editingPrice}
+                      onChange={(e) => setEditingPrice(e.target.value)}
+                      className="w-28 rounded-md border border-black/15 bg-surface px-2 py-1 text-paper"
+                      aria-label={`Price for ${t.name}`}
+                    />
+                    <button type="button" disabled={savingPrice} onClick={() => savePrice(t.id)} className="rounded-md bg-gold px-2 py-1 text-xs font-medium text-ink disabled:opacity-60">{savingPrice ? 'Saving…' : 'Save'}</button>
+                    <button type="button" disabled={savingPrice} onClick={() => setEditingPriceId(null)} className="text-xs text-muted hover:text-paper">Cancel</button>
+                  </>
+                ) : (
+                  <>
+                    <span>{formatGHS(t.price)} · admits {t.admits_count ?? 1} · {t.quantity_sold}/{t.quantity_available} sold</span>
+                    <button type="button" onClick={() => startEditingWindow(t)} className="rounded-md border border-black/15 px-2 py-1 text-xs text-paper hover:bg-black/5">Edit sales window</button>
+                    <button type="button" onClick={() => startEditingPrice(t)} className="rounded-md border border-black/15 px-2 py-1 text-xs text-paper hover:bg-black/5">Edit price</button>
+                    <button type="button" onClick={() => setDeletingTypeId(t.id)} className="rounded-md border border-flame/30 px-2 py-1 text-xs text-flame hover:bg-flame/10">Delete</button>
+                  </>
+                )}
+              </div>
             </div>
+            {editingWindowId === t.id && (
+              <div className="mt-2 space-y-3 rounded-lg border border-black/10 bg-ink/60 p-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs text-muted">
+                    Sales open
+                    <input
+                      type="datetime-local"
+                      value={windowForm.sales_start_at}
+                      onChange={(e) => setWindowForm({ ...windowForm, sales_start_at: e.target.value })}
+                      className="mt-1 w-full rounded-md border border-black/15 bg-surface px-2 py-2 text-sm text-paper"
+                    />
+                  </label>
+                  <label className="text-xs text-muted">
+                    Sales close
+                    <input
+                      type="datetime-local"
+                      value={windowForm.sales_end_at}
+                      onChange={(e) => setWindowForm({ ...windowForm, sales_end_at: e.target.value })}
+                      className="mt-1 w-full rounded-md border border-black/15 bg-surface px-2 py-2 text-sm text-paper"
+                    />
+                  </label>
+                </div>
+                <p className="text-xs text-muted">Leave either time blank for no start or end restriction.</p>
+                <div className="flex gap-2">
+                  <button type="button" disabled={savingWindow} onClick={() => saveWindow(t.id)} className="rounded-md bg-gold px-3 py-1.5 text-xs font-medium text-ink disabled:opacity-60">{savingWindow ? 'Saving…' : 'Save sales window'}</button>
+                  <button type="button" disabled={savingWindow} onClick={() => setEditingWindowId(null)} className="rounded-md border border-black/15 px-3 py-1.5 text-xs text-paper disabled:opacity-60">Cancel</button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
         {types.length === 0 && <p className="text-sm text-muted">No ticket types yet — add one below.</p>}
