@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, formatDate, formatGHS } from '../lib/supabase'
+import { getEventDayStatus } from '../lib/eventDate'
 import type { EventRow, TicketType } from '../lib/types'
 
 type EventWithTickets = EventRow & { ticketTypes: TicketType[] }
@@ -31,9 +32,8 @@ export default function AllEvents() {
     load()
   }, [])
 
-  const now = Date.now()
-  const upcoming = events.filter((event) => new Date(event.end_datetime ?? event.start_datetime).getTime() >= now)
-  const past = events.filter((event) => new Date(event.end_datetime ?? event.start_datetime).getTime() < now)
+  const upcoming = events.filter((event) => getEventDayStatus(event.start_datetime) !== 'past')
+  const past = events.filter((event) => getEventDayStatus(event.start_datetime) === 'past')
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-16">
@@ -57,7 +57,7 @@ function EventGroup({ title, events, empty }: { title: string; events: EventWith
       {events.length === 0 ? <p className="mt-4 text-muted">{empty}</p> : (
         <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {events.map((event) => (
-            <Link key={event.id} to={new Date(event.end_datetime ?? event.start_datetime).getTime() >= Date.now() ? `/events/${event.slug}` : `/past-events/${event.id}`} className="group overflow-hidden rounded-xl border border-black/10 bg-surface transition hover:-translate-y-1 hover:border-black/25 hover:shadow-md">
+            <Link key={event.id} to={getEventDayStatus(event.start_datetime) !== 'past' ? `/events/${event.slug}` : `/past-events/${event.id}`} className="group overflow-hidden rounded-xl border border-black/10 bg-surface transition hover:-translate-y-1 hover:border-black/25 hover:shadow-md">
               <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-surface-light">
                 {event.banner_image_url ? <img src={event.banner_image_url} alt={`${event.title} flyer`} loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : <span className="display text-5xl text-muted">{event.title[0]}</span>}
               </div>

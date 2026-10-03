@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase, formatDate } from '../lib/supabase'
+import { getEventDayStatus } from '../lib/eventDate'
 import type { EventRow } from '../lib/types'
 
 type SearchEvent = EventRow & { organizations?: { name: string } }
@@ -31,9 +32,8 @@ export default function SearchResults() {
   }, [query])
 
   const matches = events.filter((event) => !query || event.title.toLowerCase().includes(query.toLowerCase()))
-  const now = Date.now()
-  const upcoming = matches.filter((event) => new Date(event.end_datetime ?? event.start_datetime).getTime() >= now)
-  const past = matches.filter((event) => new Date(event.end_datetime ?? event.start_datetime).getTime() < now)
+  const upcoming = matches.filter((event) => getEventDayStatus(event.start_datetime) !== 'past')
+  const past = matches.filter((event) => getEventDayStatus(event.start_datetime) === 'past')
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-16">

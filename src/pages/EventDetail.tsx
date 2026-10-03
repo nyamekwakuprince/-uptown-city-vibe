@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase, shortCode, formatGHS, formatDate } from '../lib/supabase'
+import { getEventDayStatus } from '../lib/eventDate'
 import type { EventRow, TicketType } from '../lib/types'
 
 export default function EventDetail() {
@@ -83,7 +84,7 @@ export default function EventDetail() {
     if (!event) return
     const ticket = availableTicketTypes.find((t) => t.id === selectedTicket)
     if (!ticket) return
-    if (!isTicketOpen(ticket)) {
+    if (!isTicketOpen(event, ticket)) {
       setError('This ticket type is not available right now.')
       return
     }
@@ -104,7 +105,7 @@ export default function EventDetail() {
     })
   }
 
-  const availableTicketTypes = ticketTypes.filter((t) => isTicketOpen(t))
+  const availableTicketTypes = event ? ticketTypes.filter((t) => isTicketOpen(event, t)) : []
 
   useEffect(() => {
     if (availableTicketTypes.length > 0 && !availableTicketTypes.some((t) => t.id === selectedTicket)) {
@@ -117,9 +118,7 @@ export default function EventDetail() {
 
   const registrationOpen = isRegistrationOpen(event, registrationCount)
 
-  const now = Date.now()
-  const eventEndTime = event.end_datetime ? new Date(event.end_datetime).getTime() : new Date(event.start_datetime).getTime()
-  const isEventPast = eventEndTime < now
+  const isEventPast = getEventDayStatus(event.start_datetime) === 'past'
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-5">
@@ -235,29 +234,14 @@ export default function EventDetail() {
 
 function ticketUnavailableMessage(tickets: TicketType[]) {
   if (tickets.length === 0) return 'No ticket types have been added for this event yet.'
-
-  const now = Date.now()
-  const inStock = tickets.filter((ticket) => ticket.quantity_sold < ticket.quantity_available)
-  if (inStock.length === 0) return 'All tickets have sold out.'
-
-  const upcomingStart = inStock
-    .flatMap((ticket) => ticket.sales_start_at && new Date(ticket.sales_start_at).getTime() > now ? [ticket.sales_start_at] : [])
-    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0]
-  if (upcomingStart) return `Ticket sales open ${formatDate(upcomingStart)}.`
-
-  if (inStock.every((ticket) => ticket.sales_end_at && new Date(ticket.sales_end_at).getTime() < now)) {
-    return 'Ticket sales have ended.'
-  }
-
-  return 'No tickets are currently available.'
+  return tickets.every((ticket) => ticket.quantity_sold >= ticket.quantity_available)
+    ? 'All tickets have sold out.'
+    : 'No tickets are currently available.'
 }
 
-function isTicketOpen(ticket: TicketType) {
-  const now = new Date()
-  if (ticket.quantity_sold >= ticket.quantity_available) return false
-  if (ticket.sales_start_at && new Date(ticket.sales_start_at).getTime() > now.getTime()) return false
-  if (ticket.sales_end_at && new Date(ticket.sales_end_at).getTime() < now.getTime()) return false
-  return true
+function isTicketOpen(event: EventRow, ticket: TicketType) {
+  return getEventDayStatus(event.start_datetime) !== 'past'
+    && ticket.quantity_sold < ticket.quantity_available
 }
 
 function isRegistrationOpen(event: EventRow, registrationCount: number) {

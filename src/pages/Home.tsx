@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase, formatDate, formatGHS } from '../lib/supabase'
+import { getEventDayStatus } from '../lib/eventDate'
 import type { EventRow, GalleryImage, TicketType } from '../lib/types'
 
 type EventWithTickets = EventRow & { ticketTypes: TicketType[] }
@@ -120,7 +121,7 @@ export default function Home() {
         const loadedPastEvents = (pastResult.data as EventRow[]) ?? []
         const galleryImages = (galleryResult.data as GalleryImage[]) ?? []
         const { data: ticketData } = loadedEvents.length > 0
-          ? await supabase.from('ticket_types').select('id, event_id, name, price, quantity_available, quantity_sold, admits_count, sales_start_at, sales_end_at').in('event_id', loadedEvents.map((event) => event.id))
+          ? await supabase.from('ticket_types').select('id, event_id, name, price, quantity_available, quantity_sold, admits_count').in('event_id', loadedEvents.map((event) => event.id))
           : { data: [] }
         const ticketsByEvent = new Map<string, TicketType[]>()
         ;((ticketData as TicketType[]) ?? []).forEach((ticket) => {
@@ -136,15 +137,13 @@ export default function Home() {
     load()
   }, [])
 
-  const now = new Date().getTime()
   const matchesSearch = (e: EventWithTickets) => {
     if (!searchQuery) return true
     return e.title.toLowerCase().includes(searchQuery.toLowerCase())
   }
 
   const filtered = events.filter((e) => {
-    const eventTime = e.end_datetime ? new Date(e.end_datetime).getTime() : new Date(e.start_datetime).getTime()
-    if (eventTime < now) return false
+    if (getEventDayStatus(e.start_datetime) === 'past') return false
     if (!matchesSearch(e)) return false
 
     if (filter === 'free') return !e.is_paid
@@ -152,6 +151,7 @@ export default function Home() {
     return true
   })
   const eventGalleries = pastEvents
+    .filter((event) => getEventDayStatus(event.start_datetime) === 'past')
     .filter(matchesSearch)
     .map((event) => ({ event, images: gallery.filter((image) => image.event_id === event.id) }))
     .filter((group) => searchQuery || group.images.length > 0)

@@ -4,6 +4,7 @@ import { Html5Qrcode } from 'html5-qrcode'
 import { QRCodeCanvas } from 'qrcode.react'
 import confetti from 'canvas-confetti'
 import { supabase, formatDate, formatGHS, callFunction, sendConfirmationEmail } from '../lib/supabase'
+import { getEventDayStatus } from '../lib/eventDate'
 import { generateAndDownloadReceipt } from '../lib/receipt'
 import { useAuth } from '../context/AuthContext'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -38,13 +39,11 @@ function useOrganizationEvents(organizationId: string | null) {
 
 function isOngoingEvent(event: EventRow, now: number) {
   return event.status === 'published'
-    && new Date(event.start_datetime).getTime() <= now
-    && Boolean(event.end_datetime)
-    && new Date(event.end_datetime as string).getTime() >= now
+    && getEventDayStatus(event.start_datetime, new Date(now)) === 'today'
 }
 
 function isPastEvent(event: EventRow, now: number) {
-  return event.status !== 'draft' && new Date(event.start_datetime).getTime() <= now && !isOngoingEvent(event, now)
+  return event.status !== 'draft' && getEventDayStatus(event.start_datetime, new Date(now)) === 'past'
 }
 
 export function DashboardOverviewPage() {
@@ -66,7 +65,7 @@ export function DashboardEventsPage() {
   const navigate = useNavigate()
   const { events } = useOrganizationEvents(profile?.organization_id ?? null)
   const now = Date.now()
-  const upcoming = events.filter((event) => new Date(event.start_datetime).getTime() > now).length
+  const upcoming = events.filter((event) => getEventDayStatus(event.start_datetime, new Date(now)) === 'upcoming').length
   const past = events.filter((event) => isPastEvent(event, now)).length
 
   return (
@@ -113,7 +112,7 @@ export function DashboardEventsListPage({ category }: { category: 'ongoing' | 'u
 
   const now = Date.now()
   const ongoingEvents = events.filter((event) => isOngoingEvent(event, now))
-  const upcomingEvents = events.filter((event) => new Date(event.start_datetime).getTime() > now)
+  const upcomingEvents = events.filter((event) => getEventDayStatus(event.start_datetime, new Date(now)) === 'upcoming')
   const pastEvents = events.filter((event) => isPastEvent(event, now))
   const categoryEvents = category === 'ongoing' ? ongoingEvents : category === 'upcoming' ? upcomingEvents : pastEvents
   const title = category === 'ongoing' ? 'Ongoing events' : category === 'upcoming' ? 'Upcoming events' : 'Past events'
@@ -1005,7 +1004,7 @@ function Overview({ organizationId, events }: { organizationId: string; events: 
   useEffect(() => {
     async function load() {
       const eventIds = events.map((e) => e.id)
-      const upcoming = events.filter((e) => e.status === 'published' && new Date(e.start_datetime) > new Date()).length
+      const upcoming = events.filter((e) => e.status === 'published' && getEventDayStatus(e.start_datetime) === 'upcoming').length
 
       let attendees = 0
       let revenue = 0
@@ -1993,6 +1992,8 @@ function EditEventPanel({ event, onChange }: { event: EventRow; onChange: () => 
   const [pendingPaidChange, setPendingPaidChange] = useState<boolean | null>(null)
   const [saving, setSaving] = useState(false)
   const [bannerFile, setBannerFile] = useState<File | null>(null)
+  const eventDateLocked = Date.now() >= new Date(event.event_date_edit_deadline_at).getTime()
+  const eventDateChanged = form.start_datetime !== toLocalInput(event.start_datetime)
 
   useEffect(() => {
     setForm({
@@ -2012,6 +2013,10 @@ function EditEventPanel({ event, onChange }: { event: EventRow; onChange: () => 
   async function handleSave(e?: React.FormEvent) {
     e?.preventDefault()
     setSaveError('')
+    if (Date.now() >= new Date(event.event_date_edit_deadline_at).getTime() && eventDateChanged) {
+      setSaveError('The event date can no longer be changed; the four-day edit period has ended.')
+      return
+    }
     setSaving(true)
     try {
       let bannerUrl = event.banner_image_url
@@ -2068,11 +2073,16 @@ function EditEventPanel({ event, onChange }: { event: EventRow; onChange: () => 
             className="rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper" placeholder="Venue address" />
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <input required type="datetime-local" value={form.start_datetime} onChange={(e) => setForm({ ...form, start_datetime: e.target.value })}
-            className="rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper" />
+          <input required type="datetime-local" disabled={eventDateLocked} value={form.start_datetime} onChange={(e) => setForm({ ...form, start_datetime: e.target.value })}
+            className="rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper disabled:cursor-not-allowed disabled:opacity-60" />
           <input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })}
             className="rounded-lg border border-black/15 bg-ink px-3 py-2 text-paper" placeholder="Capacity" />
         </div>
+        <p className="text-xs text-muted">
+          {eventDateLocked
+            ? 'The four-day period for changing the event date has ended. Other event details can still be edited.'
+            : 'The event date can be changed through four days after its original scheduled date. Changing it will not extend that deadline.'}
+        </p>
         <label className="flex items-center gap-2 text-sm text-muted">
           <input
             type="checkbox"
@@ -2157,9 +2167,6 @@ function EditEventPanel({ event, onChange }: { event: EventRow; onChange: () => 
 function TicketTypesPanel({ event, onChange }: { event: EventRow; onChange: () => void }) {
   const [types, setTypes] = useState<TicketType[]>([])
   const [form, setForm] = useState({ name: '', price: '', quantity_available: '', admits_count: '1' })
-  const [editingWindowId, setEditingWindowId] = useState<string | null>(null)
-  const [windowForm, setWindowForm] = useState({ sales_start_at: '', sales_end_at: '' })
-  const [savingWindow, setSavingWindow] = useState(false)
   const [editingPriceId, setEditingPriceId] = useState<string | null>(null)
   const [editingPrice, setEditingPrice] = useState('')
   const [savingPrice, setSavingPrice] = useState(false)
@@ -2174,41 +2181,6 @@ function TicketTypesPanel({ event, onChange }: { event: EventRow; onChange: () =
     setTypes((data as TicketType[]) ?? [])
   }
   useEffect(() => { load() }, [event.id])
-
-  function startEditingWindow(ticket: TicketType) {
-    setEditingWindowId(ticket.id)
-    setWindowForm({
-      sales_start_at: ticket.sales_start_at ? toLocalInput(ticket.sales_start_at) : '',
-      sales_end_at: ticket.sales_end_at ? toLocalInput(ticket.sales_end_at) : '',
-    })
-    setError('')
-  }
-
-  async function saveWindow(ticketId: string) {
-    const start = windowForm.sales_start_at ? new Date(windowForm.sales_start_at) : null
-    const end = windowForm.sales_end_at ? new Date(windowForm.sales_end_at) : null
-    if (start && end && start.getTime() >= end.getTime()) {
-      setError('The sales end time must be after the sales start time.')
-      return
-    }
-    setSavingWindow(true)
-    setError('')
-    try {
-      const { error } = await supabase.from('ticket_types').update({
-        sales_start_at: start?.toISOString() ?? null,
-        sales_end_at: end?.toISOString() ?? null,
-      }).eq('id', ticketId).eq('event_id', event.id)
-      if (error) {
-        setError(error.message)
-        return
-      }
-      setEditingWindowId(null)
-      await load()
-      await onChange()
-    } finally {
-      setSavingWindow(false)
-    }
-  }
 
   function startEditingPrice(ticket: TicketType) {
     setEditingPriceId(ticket.id)
@@ -2287,11 +2259,6 @@ function TicketTypesPanel({ event, onChange }: { event: EventRow; onChange: () =
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-ink px-3 py-2 text-sm">
               <div>
                 <p className="text-paper">{t.name}</p>
-                <p className="mt-1 text-xs text-muted">
-                  Sales {t.sales_start_at ? `open ${formatDate(t.sales_start_at)}` : 'open immediately'}
-                  {' · '}
-                  {t.sales_end_at ? `close ${formatDate(t.sales_end_at)}` : 'no end time'}
-                </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-muted">
                 {editingPriceId === t.id ? (
@@ -2311,42 +2278,12 @@ function TicketTypesPanel({ event, onChange }: { event: EventRow; onChange: () =
                 ) : (
                   <>
                     <span>{formatGHS(t.price)} · admits {t.admits_count ?? 1} · {t.quantity_sold}/{t.quantity_available} sold</span>
-                    <button type="button" onClick={() => startEditingWindow(t)} className="rounded-md border border-black/15 px-2 py-1 text-xs text-paper hover:bg-black/5">Edit sales window</button>
                     <button type="button" onClick={() => startEditingPrice(t)} className="rounded-md border border-black/15 px-2 py-1 text-xs text-paper hover:bg-black/5">Edit price</button>
                     <button type="button" onClick={() => setDeletingTypeId(t.id)} className="rounded-md border border-flame/30 px-2 py-1 text-xs text-flame hover:bg-flame/10">Delete</button>
                   </>
                 )}
               </div>
             </div>
-            {editingWindowId === t.id && (
-              <div className="mt-2 space-y-3 rounded-lg border border-black/10 bg-ink/60 p-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="text-xs text-muted">
-                    Sales open
-                    <input
-                      type="datetime-local"
-                      value={windowForm.sales_start_at}
-                      onChange={(e) => setWindowForm({ ...windowForm, sales_start_at: e.target.value })}
-                      className="mt-1 w-full rounded-md border border-black/15 bg-surface px-2 py-2 text-sm text-paper"
-                    />
-                  </label>
-                  <label className="text-xs text-muted">
-                    Sales close
-                    <input
-                      type="datetime-local"
-                      value={windowForm.sales_end_at}
-                      onChange={(e) => setWindowForm({ ...windowForm, sales_end_at: e.target.value })}
-                      className="mt-1 w-full rounded-md border border-black/15 bg-surface px-2 py-2 text-sm text-paper"
-                    />
-                  </label>
-                </div>
-                <p className="text-xs text-muted">Leave either time blank for no start or end restriction.</p>
-                <div className="flex gap-2">
-                  <button type="button" disabled={savingWindow} onClick={() => saveWindow(t.id)} className="rounded-md bg-gold px-3 py-1.5 text-xs font-medium text-ink disabled:opacity-60">{savingWindow ? 'Saving…' : 'Save sales window'}</button>
-                  <button type="button" disabled={savingWindow} onClick={() => setEditingWindowId(null)} className="rounded-md border border-black/15 px-3 py-1.5 text-xs text-paper disabled:opacity-60">Cancel</button>
-                </div>
-              </div>
-            )}
           </div>
         ))}
         {types.length === 0 && <p className="text-sm text-muted">No ticket types yet — add one below.</p>}

@@ -40,6 +40,7 @@ export type EventRow = {
   capacity: number | null
   registration_starts_at: string | null
   registration_ends_at: string | null
+  event_date_edit_deadline_at: string
   deleted_at: string | null
   organizations?: Organization
 }
@@ -52,8 +53,6 @@ export type TicketType = {
   quantity_available: number
   quantity_sold: number
   admits_count: number
-  sales_start_at: string | null
-  sales_end_at: string | null
 }
 
 export type Registration = {
